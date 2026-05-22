@@ -1,0 +1,22 @@
+name: self-check
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip3 install -r requirements.txt
+      - name: Syntax check (all .py files)
+        run: python3 scripts/smoke_test.py
+      - name: Evidence self-check (500 runs)
+        run: python3 scripts/self_check.py --runs 500

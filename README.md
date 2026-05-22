@@ -2,6 +2,8 @@
 
 **把传统自动战斗升级成代理指挥官，同时保留玩家一句话接管关键指挥的能力。**
 
+一个针对「自然语言指挥是否能成为战斗系统交互层」的最小可证原型。
+
 ---
 
 ## 问题
@@ -67,9 +69,17 @@
 
 ---
 
+## 1.0 证明边界
+
+当前 1.0 证明的是：**玩家自然语言指挥能够稳定映射到有限战术 policy，并显著改变模拟结果。**
+
+README 提到的「战术 AI 代理指挥」是下一阶段目标——要求 LLM 读取战场状态并动态连续下令，而不仅是把玩家一句话分类成一个固定 policy。当前代码已验证「命令解释器 + 状态机」这半条链路成立的。
+
+---
+
 ## Visual Proof
 
-网页 demo 用左右对照展示自然语言指挥和 baseline 的行为差异：
+网页 demo 用左右对照展示自然语言指挥和 baseline 的行为差异（网页动画用于 visual proof，权威统计以 Python 模拟器输出为准）：
 
 ![fig1_chain](docs/figures/fig1_chain.png)
 
@@ -88,8 +98,14 @@ python3 scripts/web_server.py --port 8001
 ## 复现
 
 ```bash
-pip3 install openai
-cp .env.example .env   # 填入 DEEPSEEK_API_KEY
+pip install -r requirements.txt
+cp .env.example .env   # 填入 DEEPSEEK_API_KEY（LLM 部分才需要）
+```
+
+零 LLM 自检（3 秒出结果）：
+
+```bash
+python3 scripts/self_check.py --runs 500
 ```
 
 纯规则模拟（无需 LLM）：
