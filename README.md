@@ -154,6 +154,48 @@ python3 scripts/mirror_map_sim.py --runs 10000 --jitter 1 --red-policy bad_charg
 python3 scripts/mirror_map_sim.py --runs 10000 --jitter 1 --red-policy cower_all --blue-policy dumb
 ```
 
+## 1.0 验收目标
+
+1.0 要验证的不是“LLM 会写漂亮战报”，而是：
+
+> LLM 驱动的自然语言指挥游戏是可玩的；玩家说的话会被压缩成有限状态机命令，并真实改变胜率。
+
+核心链路：
+
+```text
+自然语言输入
+-> LLM command interpreter / unit subagent
+-> 有限 policy / FSM mode
+-> 镜像 3v3 小地图纯规则模拟
+-> 批量胜率统计
+```
+
+1.0 测试矩阵：
+
+```text
+zero_input       空输入 / 不说话
+                 -> dumb/default
+                 -> 接近 baseline
+
+good_command     “前排顶住，中后排别冲，优先集火残血”
+                 -> good_focus
+                 -> 胜率显著提升
+
+bad_charge       “所有人冲出去，不管阵型，直接追对面后排”
+                 -> bad_charge
+                 -> 胜率显著下降
+
+cower_command    “全员趴下，不许开火”
+                 -> cower_all
+                 -> 普通交火中几乎必败
+
+irrelevant_chat  “今天天气不错”
+                 -> no_op / hesitation
+                 -> 不应自动变成好策略，胜率应不高于 baseline
+```
+
+这里的重点是：自然语言入口很宽，但底层执行空间很窄。LLM 只负责理解、压缩和分发命令；胜负必须由纯规则模拟产生。
+
 实时观看一场每 tick 间隔 5 秒的自动战斗：
 
 ```bash
