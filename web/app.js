@@ -6,6 +6,7 @@ const playPauseButton = document.getElementById("playPause");
 const restartButton = document.getElementById("restart");
 const liveCommandInput = document.getElementById("liveCommandInput");
 const runLiveCommandButton = document.getElementById("runLiveCommand");
+const apiStatus = document.getElementById("apiStatus");
 const commandText = document.getElementById("commandText");
 const policyText = document.getElementById("policyText");
 const tickText = document.getElementById("tickText");
@@ -134,11 +135,33 @@ async function callLiveCommand(command, runs = 1000) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ command, runs }),
   });
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    throw new Error("LIVE API 不在线。请打开 http://127.0.0.1:8001/web/，不要用 8000 静态页。");
+  }
   const payload = await response.json();
   if (!response.ok || !payload.ok) {
     throw new Error(payload.error || `HTTP ${response.status}`);
   }
   return payload.result;
+}
+
+async function checkApiStatus() {
+  try {
+    const response = await fetch("/api/health", { cache: "no-store" });
+    const payload = await response.json();
+    if (response.ok && payload.ok) {
+      apiStatus.textContent = "LIVE API 在线";
+      apiStatus.classList.add("is-online");
+      apiStatus.classList.remove("is-offline");
+      return;
+    }
+    throw new Error("not ok");
+  } catch (_error) {
+    apiStatus.textContent = "API 不在线：用 8001";
+    apiStatus.classList.add("is-offline");
+    apiStatus.classList.remove("is-online");
+  }
 }
 
 async function runLiveCommand() {
@@ -526,4 +549,5 @@ window.addEventListener("resize", resizeCanvas);
 updateReadout();
 resizeCanvas();
 loadEvidencePayload();
+checkApiStatus();
 requestAnimationFrame(animationFrame);

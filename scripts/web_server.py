@@ -19,6 +19,12 @@ class DemoHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args: Any, directory: str | None = None, **kwargs: Any) -> None:
         super().__init__(*args, directory=directory or str(ROOT), **kwargs)
 
+    def do_GET(self) -> None:
+        if self.path == "/api/health":
+            self._send_json({"ok": True, "mode": "live-llm"})
+            return
+        super().do_GET()
+
     def do_POST(self) -> None:
         if self.path != "/api/command":
             self.send_error(HTTPStatus.NOT_FOUND, "Unknown endpoint")

@@ -114,7 +114,7 @@ h1 {
 
 .live-command {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 150px;
+  grid-template-columns: minmax(0, 1fr) 150px 190px;
   gap: 8px;
 }
 
@@ -132,6 +132,28 @@ h1 {
 .live-command input:focus {
   border-color: var(--gold);
   outline: none;
+}
+
+.api-status {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  color: var(--muted);
+  background: var(--panel);
+  font-size: 14px;
+}
+
+.api-status.is-online {
+  border-color: rgba(96, 211, 148, 0.65);
+  color: var(--green);
+}
+
+.api-status.is-offline {
+  border-color: rgba(255, 90, 101, 0.65);
+  color: var(--red);
 }
 
 .battle-stage {
