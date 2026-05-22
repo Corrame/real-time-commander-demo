@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Real-Time Commander Web Demo</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="topbar" aria-label="demo controls">
+        <div class="title-block">
+          <p class="eyebrow">1.0 visual proof</p>
+          <h1>自然语言指挥如何改变战术行为</h1>
+        </div>
+        <div class="run-controls">
+          <button id="playPause" type="button" aria-label="播放或暂停">暂停</button>
+          <button id="restart" type="button" aria-label="重新播放">重播</button>
+        </div>
+      </section>
+
+      <section class="command-strip" aria-label="command cases">
+        <button class="case-button is-active" type="button" data-case="zero_input">不说话</button>
+        <button class="case-button" type="button" data-case="good_command">好指令</button>
+        <button class="case-button" type="button" data-case="bad_charge">坏指令</button>
+        <button class="case-button" type="button" data-case="cower_command">趴下</button>
+        <button class="case-button" type="button" data-case="irrelevant_chat">闲聊</button>
+      </section>
+
+      <section class="battle-stage" aria-label="battle visualizer">
+        <canvas id="battleCanvas" width="1100" height="620"></canvas>
+      </section>
+
+      <section class="status-grid" aria-label="current state">
+        <div class="readout">
+          <span class="label">玩家输入</span>
+          <strong id="commandText"></strong>
+        </div>
+        <div class="readout">
+          <span class="label">LLM policy</span>
+          <strong id="policyText"></strong>
+        </div>
+        <div class="readout">
+          <span class="label">当前 tick</span>
+          <strong id="tickText"></strong>
+        </div>
+        <div class="readout">
+          <span class="label">1000 局结果</span>
+          <strong id="resultText"></strong>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -43,6 +43,18 @@ python3 scripts/nl_command_eval.py --runs 1000
 docs/1.0_EVIDENCE.md
 ```
 
+极简 web 可视化 demo：
+
+```bash
+python3 -m http.server 8000
+```
+
+然后打开：
+
+```text
+http://localhost:8000/web/
+```
+
 这个脚本必须调用 LLM。若 LLM 不可用，自然语言指挥评估会直接失败；底层 zero-ai 战斗仍可用 `mirror_map_sim.py` 单独运行。
 
 测试自定义一句话：
