@@ -80,7 +80,6 @@ class RuleEngine:
 
     def _act_unit(self, unit: Unit, bf: Battlefield, orders: list[Order]) -> list[str]:
         log: list[str] = []
-        primary = orders[0]
         personality_note = self._personality_note(unit)
 
         # Apply global constraints first.
@@ -88,6 +87,8 @@ class RuleEngine:
             if o.action == "do_not_chase":
                 self._add_status(unit, "do_not_chase")
                 log.append(f"{unit.name} 接收到禁止追击约束，行动边界收紧。")
+
+        primary = next((o for o in orders if o.action != "do_not_chase"), orders[0])
 
         if primary.action == "do_not_chase":
             unit.cover = min(86, unit.cover + 4)
@@ -247,6 +248,7 @@ class RuleEngine:
                     unit.cover = max(20, unit.cover - 4)
                     log.append(f"{unit.name} 压不住进攻冲动，试探性逼近 {enemy.name}，削掉 {poke} 护盾但暴露上升。{personality_note}")
                 else:
+                    unit.cover = min(78, unit.cover + 8)
                     log.append(f"{unit.name} 未提前暴露，继续等待 {enemy.name} 破盾后的处决窗口。{personality_note}")
                 return log
             burst = 38 + unit.initiative // 6
@@ -307,8 +309,8 @@ class RuleEngine:
                 log.append(f"{enemy.name} 继续侦察，{target.name} 暴露风险上升。")
                 continue
 
-            # Enemy chooses target with lower cover or spotted.
-            target = sorted(friendlies, key=lambda u: (("spotted" not in u.status), u.cover, -u.risk_preference))[0]
+            # Enemy chooses vulnerable targets, but hidden/waiting units are harder to keep under fire.
+            target = sorted(friendlies, key=self._target_vulnerability)[0]
             base = 10 if enemy.kind == "infantry" else 17
             hit_chance = 55 + scanner_bonus - target.cover // 2 - enemy.pressure // 3
             if self.rng.randint(1, 100) <= max(10, hit_chance):
@@ -327,6 +329,17 @@ class RuleEngine:
             enemy.pressure = max(0, enemy.pressure - 10)
 
         return log
+
+    def _target_vulnerability(self, unit: Unit) -> tuple[int, int, int]:
+        effective_cover = unit.cover
+        if "hidden" in unit.status:
+            effective_cover += 18
+        if "holding" in unit.status or "do_not_chase" in unit.status:
+            effective_cover += 8
+        if "waiting_execution_window" in unit.status:
+            effective_cover += 18
+        spotted_rank = 0 if "spotted" in unit.status else 1
+        return (spotted_rank, effective_cover, -unit.risk_preference)
 
     def _cleanup_status(self, bf: Battlefield) -> None:
         # Keep meaningful status but remove temporary spotted sometimes.

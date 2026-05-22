@@ -98,7 +98,7 @@ Commander >
 python3 scripts/smoke_demo.py
 ```
 
-实时观看一场每 tick 间隔 1 秒的脚本战斗：
+实时观看一场每 tick 间隔 5 秒的脚本战斗：
 
 ```bash
 python3 scripts/realtime_demo.py

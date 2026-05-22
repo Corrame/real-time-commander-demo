@@ -13,18 +13,16 @@ os.environ["LLM_DISABLED"] = "1"
 
 from agents.assistant_agent import TacticalAssistant
 from agents.command_interpreter import CommandInterpreter
-from game.display import render_state
 from game.rules import RuleEngine
 from game.scenario import create_default_battlefield
 
 
 SCRIPTED_COMMANDS = [
-    "MG 压制中路，RF 先打无人机，SMG 先别冲，HG 等破盾再处决",
+    "全体稳一点，MG 压制中路，RF 先打无人机，SMG 先别冲，HG 等破盾再处决",
     "",
     "45 等压制成功再绕后，沙鹰继续等破盾窗口",
-    "全体稳一点，别追太深",
-    "副官接管",
     "MG 继续压制装甲，RF 打暴露目标",
+    "全体别追太深，保持阵线",
     "45 找窗口绕后，HG 授权处决装甲",
     "",
 ]
@@ -64,19 +62,56 @@ def result_line(battlefield) -> str:
     return "结果：失败。敌人逼近核心区域。"
 
 
+def render_frame(battlefield, command: str, summary: str, tick_log: list[str]) -> str:
+    lines: list[str] = []
+    lines.append("=" * 72)
+    lines.append(f"[Tick {battlefield.tick - 1}->{battlefield.tick} resolved] Location: {battlefield.location} | Policy: {battlefield.commander_policy}")
+    lines.append("-" * 72)
+    lines.append(f"Command: {command or '[zero-command / AI deputy]'}")
+    lines.append(f"Parse: {summary}")
+
+    lines.append("")
+    lines.append("Friendly:")
+    for unit in battlefield.friendly_units:
+        dead = " [DOWN]" if not unit.is_alive() else ""
+        lines.append(f"  - {unit.short()}{dead}")
+
+    lines.append("")
+    lines.append("Enemy:")
+    for enemy in battlefield.enemy_units:
+        dead = " [DOWN]" if not enemy.is_alive() else ""
+        lines.append(f"  - {enemy.short()}{dead}")
+
+    friendly_logs = [item for item in tick_log if item.startswith(("HG-01", "MG-249", "SMG-45", "RF-S"))]
+    enemy_logs = [item for item in tick_log if item not in friendly_logs]
+
+    lines.append("")
+    lines.append("This tick - squad:")
+    for item in friendly_logs[:8] or ["无直接我方动作。"]:
+        lines.append(f"  * {item}")
+
+    lines.append("")
+    lines.append("This tick - enemy:")
+    hits = sum("命中" in item for item in enemy_logs)
+    misses = sum("偏出" in item for item in enemy_logs)
+    pinned = sum("推进失败" in item for item in enemy_logs)
+    pressure = sum("核心区域" in item for item in enemy_logs)
+    lines.append(f"  * hits={hits} misses={misses} pinned={pinned} core_pressure={pressure}")
+    for item in enemy_logs[:4]:
+        lines.append(f"  * {item}")
+
+    lines.append("=" * 72)
+    return "\n".join(lines)
+
+
 def run(interval: float) -> None:
     battlefield = create_default_battlefield()
     interpreter = CommandInterpreter()
     assistant = TacticalAssistant()
     rules = RuleEngine()
+    resolved = False
 
     for command in SCRIPTED_COMMANDS:
-        clear_screen()
-        print(render_state(battlefield))
-        print(f"\nNext command: {command or '[zero-command / AI deputy]'}")
-        sys.stdout.flush()
-        time.sleep(interval)
-
         player_orders, policy, summary, used_llm = interpreter.interpret(command, battlefield)
         if used_llm:
             raise AssertionError("realtime demo must run without network LLM")
@@ -87,20 +122,30 @@ def run(interval: float) -> None:
             order.priority += 10
 
         battlefield.log.append(f"[script] {summary}")
-        battlefield.log.extend(rules.resolve_tick(battlefield, deputy_orders + player_orders))
+        tick_log = rules.resolve_tick(battlefield, deputy_orders + player_orders)
+        battlefield.log.extend(tick_log)
         battlefield.tick += 1
 
+        clear_screen()
+        print(render_frame(battlefield, command, summary, tick_log))
+        sys.stdout.flush()
+        time.sleep(interval)
+
         if battle_over(battlefield):
+            resolved = True
             break
 
     clear_screen()
-    print(render_state(battlefield))
-    print("\n" + result_line(battlefield))
+    print(render_frame(battlefield, "[final]", "战斗结束。", []))
+    if resolved:
+        print("\n" + result_line(battlefield))
+    else:
+        print("\n演示结束：脚本指令播放完毕，战斗仍在进行。")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run a local real-time scripted combat demo.")
-    parser.add_argument("--interval", type=float, default=1.0, help="Seconds between ticks. Default: 1.0")
+    parser.add_argument("--interval", type=float, default=5.0, help="Seconds between ticks. Default: 5.0")
     args = parser.parse_args()
     run(args.interval)
 
