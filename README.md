@@ -37,10 +37,17 @@ DEEPSEEK_API_KEY=你的 DeepSeek API Key
 python3 scripts/nl_command_eval.py --runs 1000
 ```
 
+输出结构化 JSON，用于接回 web demo 或其他展示层：
+
+```bash
+python3 scripts/nl_command_eval.py --runs 1000 --format json --output docs/1.0_EVIDENCE.json
+```
+
 当前正式 1.0 证据表见：
 
 ```text
 docs/1.0_EVIDENCE.md
+docs/1.0_EVIDENCE.json
 ```
 
 极简 web 可视化 demo：

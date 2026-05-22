@@ -54,6 +54,14 @@ const cases = {
   },
 };
 
+const caseLabels = {
+  zero_input: "不说话",
+  good_command: "好指令",
+  bad_charge: "坏指令",
+  cower_command: "趴下",
+  irrelevant_chat: "闲聊",
+};
+
 let activeCase = "zero_input";
 let units = createUnits();
 let tick = 0;
@@ -96,6 +104,46 @@ function resetBattle() {
   lastStepAt = 0;
   updateReadout();
   draw();
+}
+
+function applyEvidencePayload(payload) {
+  if (!payload || !Array.isArray(payload.cases)) return;
+  for (const item of payload.cases) {
+    if (!item.case || !cases[item.case]) continue;
+    cases[item.case] = {
+      command: item.command || "（不说话）",
+      policy: item.policy || cases[item.case].policy,
+      result: formatStats(item.stats),
+      note: item.reason || cases[item.case].note,
+    };
+  }
+  updateReadout();
+  draw();
+}
+
+function formatStats(stats) {
+  if (!stats) return "no stats";
+  const red = percent(stats.red_win_rate);
+  const blue = percent(stats.blue_win_rate);
+  const draw = percent(stats.draw_rate);
+  return `red ${red} / blue ${blue} / draw ${draw}`;
+}
+
+function percent(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "0.0%";
+  return `${(number * 100).toFixed(1)}%`;
+}
+
+async function loadEvidencePayload() {
+  try {
+    const response = await fetch("../docs/1.0_EVIDENCE.json", { cache: "no-store" });
+    if (!response.ok) return;
+    const payload = await response.json();
+    applyEvidencePayload(payload);
+  } catch (_error) {
+    // Static file loading is optional; built-in demo cases remain usable.
+  }
 }
 
 function commandFor(unitData, policy, currentTick) {
@@ -240,7 +288,7 @@ function finished() {
 
 function updateReadout() {
   const selected = cases[activeCase];
-  commandText.textContent = selected.command;
+  commandText.textContent = selected.command || "（不说话）";
   policyText.textContent = `${selected.policy}：${selected.note}`;
   tickText.textContent = `${tick} / ${config.maxTicks}`;
   resultText.textContent = selected.result;
@@ -430,4 +478,5 @@ window.addEventListener("resize", resizeCanvas);
 
 updateReadout();
 resizeCanvas();
+loadEvidencePayload();
 requestAnimationFrame(animationFrame);

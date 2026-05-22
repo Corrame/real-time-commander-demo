@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -80,7 +81,7 @@ def clean_policy_result(data: dict[str, Any], used_llm: bool) -> tuple[str, floa
     return policy, max(0.0, min(confidence, 1.0)), reason, used_llm
 
 
-def evaluate_case(case: EvalCase, runs: int, seed: int, jitter: int) -> str:
+def evaluate_case(case: EvalCase, runs: int, seed: int, jitter: int) -> dict[str, Any]:
     policy, confidence, reason, used_llm = interpret_with_llm(case.command)
 
     stats = run_batch(
@@ -90,17 +91,54 @@ def evaluate_case(case: EvalCase, runs: int, seed: int, jitter: int) -> str:
         red_policy=policy,
         blue_policy="dumb",
     )
+    return {
+        "case": case.name,
+        "command": case.command,
+        "llm": used_llm,
+        "policy": policy,
+        "confidence": confidence,
+        "reason": reason,
+        "stats": {
+            "runs": stats.runs,
+            "red_wins": stats.red_wins,
+            "blue_wins": stats.blue_wins,
+            "draws": stats.draws,
+            "red_win_rate": stats.red_win_rate,
+            "blue_win_rate": stats.blue_win_rate,
+            "draw_rate": stats.draw_rate,
+            "avg_ticks": stats.avg_ticks,
+            "avg_red_hp": stats.avg_red_hp,
+            "avg_blue_hp": stats.avg_blue_hp,
+            "avg_winner_hp": stats.avg_winner_hp,
+        },
+    }
+
+
+def format_case_line(result: dict[str, Any]) -> str:
+    stats = result["stats"]
     return (
-        f"{case.name}\t"
-        f"llm={'yes' if used_llm else 'no'}\t"
-        f"policy={policy}\t"
-        f"confidence={confidence:.2f}\t"
-        f"red_win={stats.red_win_rate:.1%}\t"
-        f"blue_win={stats.blue_win_rate:.1%}\t"
-        f"draw={stats.draw_rate:.1%}\t"
-        f"avg_winner_hp={stats.avg_winner_hp:.2f}\t"
-        f"reason={reason}"
+        f"{result['case']}\t"
+        f"llm={'yes' if result['llm'] else 'no'}\t"
+        f"policy={result['policy']}\t"
+        f"confidence={result['confidence']:.2f}\t"
+        f"red_win={stats['red_win_rate']:.1%}\t"
+        f"blue_win={stats['blue_win_rate']:.1%}\t"
+        f"draw={stats['draw_rate']:.1%}\t"
+        f"avg_winner_hp={stats['avg_winner_hp']:.2f}\t"
+        f"reason={result['reason']}"
     )
+
+
+def build_payload(results: list[dict[str, Any]], runs: int, seed: int, jitter: int) -> dict[str, Any]:
+    return {
+        "schema": "real-time-commander-demo/evidence-run@1",
+        "llm_required": True,
+        "blue_policy": "dumb",
+        "runs": runs,
+        "seed": seed,
+        "jitter": jitter,
+        "cases": results,
+    }
 
 
 def main() -> None:
@@ -109,15 +147,29 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--jitter", type=int, default=1)
     parser.add_argument("--command", default=None, help="Evaluate one custom command instead of the built-in 1.0 matrix.")
+    parser.add_argument("--format", choices=("table", "json"), default="table")
+    parser.add_argument("--output", default=None, help="Write JSON output to this file when --format json is used.")
     args = parser.parse_args()
 
     cases = [EvalCase("custom", args.command)] if args.command is not None else CASES
-    print("case\tllm\tpolicy\tconfidence\tred_win\tblue_win\tdraw\tavg_winner_hp\treason")
+    results: list[dict[str, Any]] = []
     for case in cases:
         try:
-            print(evaluate_case(case, args.runs, args.seed, args.jitter))
+            results.append(evaluate_case(case, args.runs, args.seed, args.jitter))
         except LLMError as exc:
             raise SystemExit(f"LLM unavailable; cannot run natural-language command evaluation: {exc}") from exc
+    if args.format == "json":
+        payload = build_payload(results, args.runs, args.seed, args.jitter)
+        text = json.dumps(payload, ensure_ascii=False, indent=2)
+        if args.output:
+            Path(args.output).write_text(text + "\n", encoding="utf-8")
+        else:
+            print(text)
+        return
+
+    print("case\tllm\tpolicy\tconfidence\tred_win\tblue_win\tdraw\tavg_winner_hp\treason")
+    for result in results:
+        print(format_case_line(result))
 
 
 if __name__ == "__main__":

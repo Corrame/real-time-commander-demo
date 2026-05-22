@@ -1,0 +1,86 @@
+{
+  "schema": "real-time-commander-demo/evidence-run@1",
+  "llm_required": true,
+  "blue_policy": "dumb",
+  "runs": 1000,
+  "seed": 42,
+  "jitter": 1,
+  "model": "deepseek-v4-flash",
+  "cases": [
+    {
+      "case": "zero_input",
+      "command": "",
+      "llm": true,
+      "policy": "dumb",
+      "confidence": 1.0,
+      "reason": "空输入，默认简单自动化",
+      "stats": {
+        "runs": 1000,
+        "red_win_rate": 0.333,
+        "blue_win_rate": 0.305,
+        "draw_rate": 0.362,
+        "avg_winner_hp": 2.47
+      }
+    },
+    {
+      "case": "good_command",
+      "command": "前排顶住，中后排别冲，优先集火残血。",
+      "llm": true,
+      "policy": "good_focus",
+      "confidence": 0.95,
+      "reason": "指令要求前排顶住、中后排不冲、集火残血，符合好战术策略。",
+      "stats": {
+        "runs": 1000,
+        "red_win_rate": 0.963,
+        "blue_win_rate": 0.0,
+        "draw_rate": 0.037,
+        "avg_winner_hp": 19.67
+      }
+    },
+    {
+      "case": "bad_charge",
+      "command": "所有人冲出去，不管阵型，直接追对面后排。",
+      "llm": true,
+      "policy": "bad_charge",
+      "confidence": 1.0,
+      "reason": "命令明确要求全员冲锋、忽视阵型、追击后排，属于鲁莽冲锋策略。",
+      "stats": {
+        "runs": 1000,
+        "red_win_rate": 0.003,
+        "blue_win_rate": 0.997,
+        "draw_rate": 0.0,
+        "avg_winner_hp": 33.54
+      }
+    },
+    {
+      "case": "cower_command",
+      "command": "全员趴下，不许开火。",
+      "llm": true,
+      "policy": "cower_all",
+      "confidence": 0.95,
+      "reason": "命令要求全员趴下且不许开火，符合cower_all策略",
+      "stats": {
+        "runs": 1000,
+        "red_win_rate": 0.0,
+        "blue_win_rate": 1.0,
+        "draw_rate": 0.0,
+        "avg_winner_hp": 86.0
+      }
+    },
+    {
+      "case": "irrelevant_chat",
+      "command": "今天天气不错。",
+      "llm": true,
+      "policy": "hesitate",
+      "confidence": 0.9,
+      "reason": "用户谈论天气，属于无关闲聊，导致小队犹豫",
+      "stats": {
+        "runs": 1000,
+        "red_win_rate": 0.311,
+        "blue_win_rate": 0.316,
+        "draw_rate": 0.373,
+        "avg_winner_hp": 2.55
+      }
+    }
+  ]
+}
