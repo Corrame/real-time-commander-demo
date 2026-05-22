@@ -98,14 +98,34 @@ Commander >
 python3 scripts/smoke_demo.py
 ```
 
-实时观看一场每 tick 间隔 5 秒的脚本战斗：
+实时观看一场每 tick 间隔 5 秒的自动战斗：
 
 ```bash
 python3 scripts/realtime_demo.py
+```
+
+默认是 `auto` 模式：LLM 每 tick 读取战场状态，自己判断要不要介入；默认 AI 副官仍会提供基础战术。
+
+模拟人类接入时，使用 `human-script` 模式。它会把普通、模糊、危险和零指挥输入交给 LLM 解析：
+
+```bash
+python3 scripts/realtime_demo.py --mode human-script
+```
+
+只想离线看本地 fallback 解析时：
+
+```bash
+python3 scripts/realtime_demo.py --offline
 ```
 
 调整刷新间隔：
 
 ```bash
 python3 scripts/realtime_demo.py --interval 0.5
+```
+
+快速只跑前 2 个 tick / 输入：
+
+```bash
+python3 scripts/realtime_demo.py --limit 2
 ```

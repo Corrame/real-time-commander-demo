@@ -51,6 +51,7 @@ class OpenAICompatibleClient:
     def chat_json(self, system_prompt: str, user_prompt: str, timeout: int = 40) -> dict[str, Any]:
         if not self.enabled:
             raise LLMError("LLM is not configured. Install openai and set DEEPSEEK_API_KEY or LLM_API_KEY.")
+        timeout = int(os.environ.get("LLM_TIMEOUT", timeout))
 
         last_error: Exception | None = None
         prompts = [

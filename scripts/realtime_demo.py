@@ -1,30 +1,35 @@
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-os.environ["LLM_DISABLED"] = "1"
-
+from agents.auto_commander import AutoCommander
 from agents.assistant_agent import TacticalAssistant
 from agents.command_interpreter import CommandInterpreter
+from game.models import Order
 from game.rules import RuleEngine
 from game.scenario import create_default_battlefield
 
 
-SCRIPTED_COMMANDS = [
-    "全体稳一点，MG 压制中路，RF 先打无人机，SMG 先别冲，HG 等破盾再处决",
-    "",
-    "45 等压制成功再绕后，沙鹰继续等破盾窗口",
-    "MG 继续压制装甲，RF 打暴露目标",
-    "全体别追太深，保持阵线",
-    "45 找窗口绕后，HG 授权处决装甲",
-    "",
+@dataclass(frozen=True)
+class DemoInput:
+    kind: str
+    command: str
+
+
+HUMAN_SCRIPT_INPUTS = [
+    DemoInput("普通指令", "MG 压制中路，RF 先打无人机，SMG 先别冲，HG 等破盾再处决"),
+    DemoInput("模糊指令", "稳一点，别让中路崩，机会合适再动手"),
+    DemoInput("危险指令", "所有人立刻冲出去贴脸打装甲，不要管掩体，也不要压制"),
+    DemoInput("普通指令", "45 找安全窗口绕后，MG 继续压制装甲，RF 打暴露目标"),
+    DemoInput("模糊指令", "现在别贪，能收就收，不能收就保人"),
+    DemoInput("零指挥", ""),
 ]
 
 
@@ -62,13 +67,45 @@ def result_line(battlefield) -> str:
     return "结果：失败。敌人逼近核心区域。"
 
 
-def render_frame(battlefield, command: str, summary: str, tick_log: list[str]) -> str:
+def format_orders(orders: list[Order]) -> list[str]:
+    if not orders:
+        return ["direct_orders=[]"]
+    lines = []
+    for order in orders[:6]:
+        target = f" target={order.target}" if order.target else ""
+        condition = f" condition={order.condition}" if order.condition else ""
+        constraints = f" constraints={order.constraints}" if order.constraints else ""
+        lines.append(f"{order.unit}: {order.action}{target}{condition}{constraints} priority={order.priority}")
+    return lines
+
+
+def decision_label(mode: str, used_llm: bool) -> str:
+    if mode == "auto":
+        return f"Auto commander: {'LLM' if used_llm else 'fallback/deputy-only'}"
+    return f"Command interpreter: {'LLM' if used_llm else 'fallback'}"
+
+
+def render_frame(
+    battlefield,
+    mode: str,
+    item: DemoInput,
+    summary: str,
+    used_llm: bool,
+    player_orders: list[Order],
+    tick_log: list[str],
+) -> str:
     lines: list[str] = []
     lines.append("=" * 72)
     lines.append(f"[Tick {battlefield.tick - 1}->{battlefield.tick} resolved] Location: {battlefield.location} | Policy: {battlefield.commander_policy}")
     lines.append("-" * 72)
-    lines.append(f"Command: {command or '[zero-command / AI deputy]'}")
+    lines.append(f"Mode: {mode}")
+    lines.append(f"Input kind: {item.kind}")
+    lines.append(f"Command: {item.command or '[zero-command / AI deputy]'}")
+    lines.append(decision_label(mode, used_llm))
     lines.append(f"Parse: {summary}")
+    lines.append("Orders:")
+    for order_line in format_orders(player_orders):
+        lines.append(f"  - {order_line}")
 
     lines.append("")
     lines.append("Friendly:")
@@ -104,17 +141,28 @@ def render_frame(battlefield, command: str, summary: str, tick_log: list[str]) -
     return "\n".join(lines)
 
 
-def run(interval: float) -> None:
+def run(interval: float, offline: bool, mode: str, limit: int | None) -> None:
+    if offline:
+        import os
+
+        os.environ["LLM_DISABLED"] = "1"
+
     battlefield = create_default_battlefield()
+    auto_commander = AutoCommander()
     interpreter = CommandInterpreter()
     assistant = TacticalAssistant()
     rules = RuleEngine()
     resolved = False
+    human_inputs = HUMAN_SCRIPT_INPUTS[:limit] if limit is not None else HUMAN_SCRIPT_INPUTS
+    max_ticks = limit if limit is not None and mode == "auto" else len(human_inputs)
 
-    for command in SCRIPTED_COMMANDS:
-        player_orders, policy, summary, used_llm = interpreter.interpret(command, battlefield)
-        if used_llm:
-            raise AssertionError("realtime demo must run without network LLM")
+    for index in range(max_ticks):
+        if mode == "auto":
+            item = DemoInput("AI 自动监看", "[LLM reads battlefield and decides whether to intervene]")
+            player_orders, policy, summary, used_llm = auto_commander.decide(battlefield)
+        else:
+            item = human_inputs[index]
+            player_orders, policy, summary, used_llm = interpreter.interpret(item.command, battlefield)
 
         battlefield.commander_policy = policy
         deputy_orders = assistant.propose_orders(battlefield)
@@ -127,7 +175,7 @@ def run(interval: float) -> None:
         battlefield.tick += 1
 
         clear_screen()
-        print(render_frame(battlefield, command, summary, tick_log))
+        print(render_frame(battlefield, mode, item, summary, used_llm, player_orders, tick_log))
         sys.stdout.flush()
         time.sleep(interval)
 
@@ -136,18 +184,25 @@ def run(interval: float) -> None:
             break
 
     clear_screen()
-    print(render_frame(battlefield, "[final]", "战斗结束。", []))
+    final_item = DemoInput("final", "[final]")
+    print(render_frame(battlefield, mode, final_item, "战斗结束。", False, [], []))
     if resolved:
         print("\n" + result_line(battlefield))
     else:
-        print("\n演示结束：脚本指令播放完毕，战斗仍在进行。")
+        if mode == "auto":
+            print("\n演示结束：AI 自动监看 tick 播放完毕，战斗仍在进行。")
+        else:
+            print("\n演示结束：人类输入脚本播放完毕，战斗仍在进行。")
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run a local real-time scripted combat demo.")
+    parser = argparse.ArgumentParser(description="Run a real-time tactical demo with AI auto-watch or simulated human commands.")
     parser.add_argument("--interval", type=float, default=5.0, help="Seconds between ticks. Default: 5.0")
+    parser.add_argument("--offline", action="store_true", help="Disable LLM and use local fallback parsing.")
+    parser.add_argument("--mode", choices=("auto", "human-script"), default="auto", help="auto lets LLM watch the battlefield; human-script feeds simulated human commands.")
+    parser.add_argument("--limit", type=int, default=None, help="Limit ticks/inputs for quick API checks.")
     args = parser.parse_args()
-    run(args.interval)
+    run(args.interval, args.offline, args.mode, args.limit)
 
 
 if __name__ == "__main__":
