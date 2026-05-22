@@ -82,7 +82,7 @@ COMMAND_MODES = {
     "cower",
 }
 
-POLICIES = {"dumb", "good_focus", "bad_charge", "hold_all", "cower_all", "no_op"}
+POLICIES = {"dumb", "good_focus", "bad_charge", "hold_all", "cower_all", "hesitate"}
 
 
 def create_units() -> list[MapUnit]:
@@ -129,7 +129,7 @@ def simulate_mirror_battle(
             enemies = blue_alive if unit.side == "red" else red_alive
             allies = red_alive if unit.side == "red" else blue_alive
             policy = red_policy if unit.side == "red" else blue_policy
-            command = command_for(unit, allies, enemies, policy)
+            command = command_for(unit, allies, enemies, policy, tick)
             if command.mode == "cower":
                 continue
             target = choose_target(unit, enemies, command)
@@ -197,7 +197,7 @@ def validate_policy(policy: str) -> None:
         raise ValueError(f"Unknown policy {policy!r}. Allowed: {allowed}")
 
 
-def command_for(unit: MapUnit, allies: list[MapUnit], enemies: list[MapUnit], policy: str) -> UnitCommand:
+def command_for(unit: MapUnit, allies: list[MapUnit], enemies: list[MapUnit], policy: str, tick: int) -> UnitCommand:
     if policy == "good_focus":
         if unit.spec.role == "front":
             return UnitCommand("hold_line")
@@ -210,8 +210,8 @@ def command_for(unit: MapUnit, allies: list[MapUnit], enemies: list[MapUnit], po
         return UnitCommand("hold_position")
     if policy == "cower_all":
         return UnitCommand("cower")
-    if policy == "no_op":
-        return UnitCommand("attack_nearest")
+    if policy == "hesitate" and tick <= 2:
+        return UnitCommand("cower")
     return UnitCommand("attack_nearest")
 
 

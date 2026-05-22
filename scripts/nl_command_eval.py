@@ -20,12 +20,12 @@ Your only job is to map the user's natural-language command to exactly one
 finite policy. You do not decide combat results.
 
 Allowed policies:
-- dumb: no useful command / default simple automation / no-op
+- dumb: empty input / default simple automation
 - good_focus: front holds the line, mid/back avoid rushing, focus weakest enemies
 - bad_charge: reckless command to rush past formation and chase the enemy backline
 - cower_all: everyone lies down / freezes / refuses to fire
 - hold_all: everyone holds position but still fires if enemies enter range
-- no_op: irrelevant chat or no tactical content
+- hesitate: irrelevant chat or distracting speech; squad briefly hesitates
 
 Output JSON only:
 {
@@ -36,7 +36,7 @@ Output JSON only:
 
 Rules:
 - Empty input should map to dumb.
-- Irrelevant chat such as weather should map to no_op, not to a good strategy.
+- Irrelevant chat such as weather should map to hesitate, not to a good strategy.
 - Commands about focusing wounded/weak enemies, front holding, backline keeping distance map to good_focus.
 - Commands about everyone rushing, ignoring cover/formation, or chasing backline map to bad_charge.
 - Commands about lying down, not firing, freezing, or doing nothing under normal firefight map to cower_all.
@@ -69,9 +69,9 @@ def interpret_with_llm(command: str) -> tuple[str, float, str, bool]:
 
 
 def clean_policy_result(data: dict[str, Any], used_llm: bool) -> tuple[str, float, str, bool]:
-    policy = str(data.get("policy") or "no_op").strip()
+    policy = str(data.get("policy") or "hesitate").strip()
     if policy not in POLICIES:
-        policy = "no_op"
+        policy = "hesitate"
     try:
         confidence = float(data.get("confidence", 0.0))
     except (TypeError, ValueError):
