@@ -104,7 +104,13 @@ python3 scripts/smoke_demo.py
 python3 scripts/realtime_demo.py
 ```
 
-默认是 `auto` 模式：LLM 每 tick 读取战场状态，自己判断要不要介入；默认 AI 副官仍会提供基础战术。
+默认是 `zero-ai` 模式：不调用 LLM，只运行本地规则、默认战术和 AI 副官。这对应“碾压局 / 简单局不需要介入”。
+
+均势或复杂局面可以使用低频 AI 介入。LLM 只按较长间隔读取战场并可能发出指令，不是每 tick 高频监控：
+
+```bash
+python3 scripts/realtime_demo.py --mode ai-interval --ai-every 4
+```
 
 模拟人类接入时，使用 `human-script` 模式。它会把普通、模糊、危险和零指挥输入交给 LLM 解析：
 
@@ -112,7 +118,7 @@ python3 scripts/realtime_demo.py
 python3 scripts/realtime_demo.py --mode human-script
 ```
 
-只想离线看本地 fallback 解析时：
+所有模式都可以强制离线，不调用 LLM：
 
 ```bash
 python3 scripts/realtime_demo.py --offline

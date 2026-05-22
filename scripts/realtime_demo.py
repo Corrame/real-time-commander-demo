@@ -80,8 +80,10 @@ def format_orders(orders: list[Order]) -> list[str]:
 
 
 def decision_label(mode: str, used_llm: bool) -> str:
-    if mode == "auto":
-        return f"Auto commander: {'LLM' if used_llm else 'fallback/deputy-only'}"
+    if mode == "zero-ai":
+        return "Automation: local rules + default deputy, no LLM"
+    if mode == "ai-interval":
+        return f"Low-frequency AI: {'LLM intervention' if used_llm else 'no LLM this tick'}"
     return f"Command interpreter: {'LLM' if used_llm else 'fallback'}"
 
 
@@ -141,7 +143,7 @@ def render_frame(
     return "\n".join(lines)
 
 
-def run(interval: float, offline: bool, mode: str, limit: int | None) -> None:
+def run(interval: float, offline: bool, mode: str, limit: int | None, ai_every: int) -> None:
     if offline:
         import os
 
@@ -154,12 +156,19 @@ def run(interval: float, offline: bool, mode: str, limit: int | None) -> None:
     rules = RuleEngine()
     resolved = False
     human_inputs = HUMAN_SCRIPT_INPUTS[:limit] if limit is not None else HUMAN_SCRIPT_INPUTS
-    max_ticks = limit if limit is not None and mode == "auto" else len(human_inputs)
+    max_ticks = limit if limit is not None and mode in ("zero-ai", "ai-interval") else len(human_inputs)
 
     for index in range(max_ticks):
-        if mode == "auto":
-            item = DemoInput("AI 自动监看", "[LLM reads battlefield and decides whether to intervene]")
-            player_orders, policy, summary, used_llm = auto_commander.decide(battlefield)
+        if mode == "zero-ai":
+            item = DemoInput("零 AI 自动战场", "[no human input; no LLM]")
+            player_orders, policy, summary, used_llm = [], battlefield.commander_policy, "零 AI：本 tick 只运行本地自动战术。", False
+        elif mode == "ai-interval":
+            if index % ai_every == 0:
+                item = DemoInput("低频 AI 介入", "[LLM reads battlefield at interval and may issue orders]")
+                player_orders, policy, summary, used_llm = auto_commander.decide(battlefield)
+            else:
+                item = DemoInput("间隔等待", "[no LLM call this tick]")
+                player_orders, policy, summary, used_llm = [], battlefield.commander_policy, "AI 介入间隔未到；本 tick 只运行本地自动战术。", False
         else:
             item = human_inputs[index]
             player_orders, policy, summary, used_llm = interpreter.interpret(item.command, battlefield)
@@ -189,20 +198,28 @@ def run(interval: float, offline: bool, mode: str, limit: int | None) -> None:
     if resolved:
         print("\n" + result_line(battlefield))
     else:
-        if mode == "auto":
-            print("\n演示结束：AI 自动监看 tick 播放完毕，战斗仍在进行。")
+        if mode == "zero-ai":
+            print("\n演示结束：零 AI 自动战场 tick 播放完毕，战斗仍在进行。")
+        elif mode == "ai-interval":
+            print("\n演示结束：低频 AI 介入 tick 播放完毕，战斗仍在进行。")
         else:
             print("\n演示结束：人类输入脚本播放完毕，战斗仍在进行。")
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run a real-time tactical demo with AI auto-watch or simulated human commands.")
+    parser = argparse.ArgumentParser(description="Run a real-time tactical demo.")
     parser.add_argument("--interval", type=float, default=5.0, help="Seconds between ticks. Default: 5.0")
-    parser.add_argument("--offline", action="store_true", help="Disable LLM and use local fallback parsing.")
-    parser.add_argument("--mode", choices=("auto", "human-script"), default="auto", help="auto lets LLM watch the battlefield; human-script feeds simulated human commands.")
-    parser.add_argument("--limit", type=int, default=None, help="Limit ticks/inputs for quick API checks.")
+    parser.add_argument("--offline", action="store_true", help="Disable LLM and use local fallback/deputy behavior.")
+    parser.add_argument(
+        "--mode",
+        choices=("zero-ai", "ai-interval", "human-script"),
+        default="zero-ai",
+        help="zero-ai is default local automation; ai-interval lets LLM intervene every N ticks; human-script feeds simulated human commands.",
+    )
+    parser.add_argument("--ai-every", type=int, default=4, help="In ai-interval mode, call LLM every N ticks. Default: 4")
+    parser.add_argument("--limit", type=int, default=None, help="Limit ticks/inputs for quick checks.")
     args = parser.parse_args()
-    run(args.interval, args.offline, args.mode, args.limit)
+    run(args.interval, args.offline, args.mode, args.limit, max(1, args.ai_every))
 
 
 if __name__ == "__main__":
