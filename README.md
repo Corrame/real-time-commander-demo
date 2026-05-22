@@ -98,6 +98,24 @@ Commander >
 python3 scripts/smoke_demo.py
 ```
 
+## 战斗底盘校准
+
+先不测试 LLM 或人类指令，单独校准自动战斗的胜负底盘。
+
+`0.1` 是确定性同归/近同归 baseline：
+
+```bash
+python3 scripts/baseline_sim.py --config 0.1
+```
+
+`0.2` 加入命中、暴击和伤害浮动，但双方参数仍保持对称，用批量运行检查五五开：
+
+```bash
+python3 scripts/baseline_sim.py --config 0.2 --runs 1000
+```
+
+这个阶段的目标是先得到一个可统计的 zero-ai baseline，再比较后续 LLM 低频介入或人类接入是否改变胜率。
+
 实时观看一场每 tick 间隔 5 秒的自动战斗：
 
 ```bash
