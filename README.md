@@ -196,6 +196,20 @@ irrelevant_chat  “今天天气不错”
 
 这里的重点是：自然语言入口很宽，但底层执行空间很窄。LLM 只负责理解、压缩和分发命令；胜负必须由纯规则模拟产生。
 
+运行 1.0 自然语言胜率评估：
+
+```bash
+python3 scripts/nl_command_eval.py --runs 1000
+```
+
+这个脚本必须调用 LLM。若 LLM 不可用，自然语言指挥评估会直接失败；底层 zero-ai 战斗仍可用 `mirror_map_sim.py` 单独运行。
+
+测试自定义一句话：
+
+```bash
+python3 scripts/nl_command_eval.py --command "前排顶住，中后排别冲，优先集火残血。"
+```
+
 实时观看一场每 tick 间隔 5 秒的自动战斗：
 
 ```bash

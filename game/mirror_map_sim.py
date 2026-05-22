@@ -82,7 +82,7 @@ COMMAND_MODES = {
     "cower",
 }
 
-POLICIES = {"dumb", "good_focus", "bad_charge", "hold_all", "cower_all"}
+POLICIES = {"dumb", "good_focus", "bad_charge", "hold_all", "cower_all", "no_op"}
 
 
 def create_units() -> list[MapUnit]:
@@ -210,6 +210,8 @@ def command_for(unit: MapUnit, allies: list[MapUnit], enemies: list[MapUnit], po
         return UnitCommand("hold_position")
     if policy == "cower_all":
         return UnitCommand("cower")
+    if policy == "no_op":
+        return UnitCommand("attack_nearest")
     return UnitCommand("attack_nearest")
 
 
