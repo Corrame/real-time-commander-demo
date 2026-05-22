@@ -74,6 +74,56 @@ Rules:
 
 
 class CommandInterpreter:
+    ALLOWED_UNITS = {"HG-01", "MG-249", "SMG-45", "RF-S", "ALL"}
+    UNIT_ALIASES = {
+        "hg": "HG-01",
+        "hg-01": "HG-01",
+        "手枪": "HG-01",
+        "沙鹰": "HG-01",
+        "mg": "MG-249",
+        "mg-249": "MG-249",
+        "m249": "MG-249",
+        "机枪": "MG-249",
+        "smg": "SMG-45",
+        "smg-45": "SMG-45",
+        "45": "SMG-45",
+        "冲锋": "SMG-45",
+        "rf": "RF-S",
+        "rf-s": "RF-S",
+        "春田": "RF-S",
+        "狙": "RF-S",
+        "all": "ALL",
+        "全体": "ALL",
+    }
+    ALLOWED_ACTIONS = {
+        "hold",
+        "advance",
+        "suppress",
+        "flank",
+        "retreat",
+        "focus_fire",
+        "prioritize_target",
+        "execute",
+        "free_fire",
+        "do_not_chase",
+        "set_policy",
+        "authorize",
+        "deny",
+    }
+    ALLOWED_POLICIES = {"balanced", "conservative", "aggressive", "hold_position", "preserve_hp", "rapid_clear"}
+    ALLOWED_TARGETS = {
+        None,
+        "middle_lane",
+        "left_flank",
+        "right_flank",
+        "drone",
+        "armored",
+        "infantry",
+        "exposed_enemy",
+        "core_area",
+        "safe_cover",
+    }
+
     def __init__(self) -> None:
         self.llm = OpenAICompatibleClient()
 
@@ -137,24 +187,71 @@ Commander command:
 """.strip()
 
         data = self.llm.chat_json(SYSTEM_PROMPT, user_prompt)
-        policy = str(data.get("policy") or bf.commander_policy or "balanced")
+        policy = self._clean_policy(data.get("policy"), bf.commander_policy)
         summary = str(data.get("commander_intent_summary") or "命令已解析。")
         orders = []
         for item in data.get("orders", []):
             if not isinstance(item, dict):
                 continue
+            unit = self._clean_unit(item.get("unit"))
+            action = self._clean_action(item.get("action"))
+            target = self._clean_target(item.get("target"))
+            constraints = self._clean_constraints(item.get("constraints"))
+            if not unit or not action:
+                continue
+            try:
+                priority = int(item.get("priority") or 1)
+            except (TypeError, ValueError):
+                priority = 1
             orders.append(
                 Order(
-                    unit=str(item.get("unit") or "ALL"),
-                    action=str(item.get("action") or "hold"),
-                    target=item.get("target"),
-                    condition=item.get("condition"),
-                    constraints=list(item.get("constraints") or []),
-                    priority=int(item.get("priority") or 1),
+                    unit=unit,
+                    action=action,
+                    target=target,
+                    condition=self._clean_condition(item.get("condition")),
+                    constraints=constraints,
+                    priority=max(1, min(priority, 5)),
                     raw_text=command,
                 )
             )
         return orders, policy, summary
+
+    def _clean_unit(self, value: Any) -> str | None:
+        unit = str(value or "ALL").strip()
+        unit = self.UNIT_ALIASES.get(unit.lower(), self.UNIT_ALIASES.get(unit, unit))
+        return unit if unit in self.ALLOWED_UNITS else None
+
+    def _clean_action(self, value: Any) -> str | None:
+        action = str(value or "hold").strip().lower()
+        return action if action in self.ALLOWED_ACTIONS else None
+
+    def _clean_policy(self, value: Any, fallback: str) -> str:
+        policy = str(value or fallback or "balanced").strip().lower()
+        return policy if policy in self.ALLOWED_POLICIES else "balanced"
+
+    def _clean_target(self, value: Any) -> str | None:
+        if value is None:
+            return None
+        target = str(value).strip().lower()
+        aliases = {"middle": "middle_lane", "exposed": "exposed_enemy", "armor": "armored", "safe": "safe_cover"}
+        target = aliases.get(target, target)
+        return target if target in self.ALLOWED_TARGETS else None
+
+    def _clean_condition(self, value: Any) -> str | None:
+        if value is None:
+            return None
+        condition = str(value).strip()
+        return condition[:80] if condition else None
+
+    def _clean_constraints(self, value: Any) -> list[str]:
+        if not isinstance(value, list):
+            return []
+        cleaned = []
+        for item in value[:6]:
+            text = str(item).strip().lower()
+            if re.fullmatch(r"[a-z0-9_\-]{1,40}", text):
+                cleaned.append(text)
+        return cleaned
 
     def _fallback_interpret(self, command: str, bf: Battlefield) -> tuple[list[Order], str, str]:
         """

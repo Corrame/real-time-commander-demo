@@ -89,3 +89,11 @@ Commander >
 ```
 
 回车代表零指挥，本 tick 由 AI 副官/默认战术接管。
+
+## 本地验证
+
+不访问 LLM、只跑本地规则和 fallback 解析：
+
+```bash
+python3 scripts/smoke_demo.py
+```

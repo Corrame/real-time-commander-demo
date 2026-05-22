@@ -81,6 +81,7 @@ class RuleEngine:
     def _act_unit(self, unit: Unit, bf: Battlefield, orders: list[Order]) -> list[str]:
         log: list[str] = []
         primary = orders[0]
+        personality_note = self._personality_note(unit)
 
         # Apply global constraints first.
         for o in orders:
@@ -88,15 +89,38 @@ class RuleEngine:
                 self._add_status(unit, "do_not_chase")
                 log.append(f"{unit.name} 接收到禁止追击约束，行动边界收紧。")
 
+        if primary.action == "do_not_chase":
+            unit.cover = min(86, unit.cover + 4)
+            self._add_status(unit, "holding")
+            log.append(f"{unit.name} 将禁止追击作为主约束，收住阵位并等待下一窗口。{personality_note}")
+            return log
+
+        if primary.action == "set_policy":
+            log.append(f"{unit.name} 接收到全局方针调整，维持当前战术职责并等待副官重排。")
+            return log
+
+        if primary.action == "authorize":
+            self._add_status(unit, "authorized")
+            log.append(f"{unit.name} 获得授权，会在职责窗口内主动抓机会。")
+            return log
+
+        if primary.action == "deny":
+            self._add_status(unit, "denied")
+            unit.cover = min(90, unit.cover + 5)
+            log.append(f"{unit.name} 收到否决，取消高风险动作并回收暴露。")
+            return log
+
         if primary.action == "hold":
             self._add_status(unit, "holding")
             if "stay_hidden" in primary.constraints:
                 self._add_status(unit, "hidden")
-                unit.cover = min(85, unit.cover + 6)
-                log.append(f"{unit.name} 保持隐蔽等待，掩体利用提升。")
+                cover_gain = 8 if unit.personality in ("cautious", "veteran") else 5
+                unit.cover = min(88, unit.cover + cover_gain)
+                log.append(f"{unit.name} 保持隐蔽等待，掩体利用提升。{personality_note}")
             else:
-                unit.cover = min(80, unit.cover + 3)
-                log.append(f"{unit.name} 守住当前位置，等待更清晰窗口。")
+                cover_gain = 5 if unit.personality == "cautious" else 3
+                unit.cover = min(82, unit.cover + cover_gain)
+                log.append(f"{unit.name} 守住当前位置，等待更清晰窗口。{personality_note}")
             return log
 
         if primary.action == "retreat":
@@ -113,20 +137,31 @@ class RuleEngine:
                 log.append(f"{unit.name} 尝试压制，但没有找到有效目标。")
                 return log
             ammo_cost = 12 if unit.weapon_type == "MG" else 8
+            if unit.weapon_type == "MG" and "ammo_hungry" in unit.traits:
+                ammo_cost += 2
+            if bf.commander_policy in ("conservative", "preserve_hp"):
+                ammo_cost = max(4, ammo_cost - 3)
             if unit.ammo < ammo_cost:
                 log.append(f"{unit.name} 弹药不足，压制强度下降。")
                 ammo_cost = min(unit.ammo, 5)
             unit.ammo = max(0, unit.ammo - ammo_cost)
             for e in target_enemies:
                 pressure_gain = 28 if unit.weapon_type == "MG" else 15
+                if unit.weapon_type == "MG":
+                    pressure_gain += 6
+                if unit.personality == "steady":
+                    pressure_gain += 4
                 e.pressure = min(100, e.pressure + pressure_gain)
                 e.exposed = e.pressure >= 45
                 if e.shield > 0:
-                    e.shield = max(0, e.shield - (20 if unit.weapon_type == "MG" else 8))
+                    shield_hit = 24 if unit.weapon_type == "MG" else 8
+                    if "shield_breaker" in unit.traits:
+                        shield_hit += 8
+                    e.shield = max(0, e.shield - shield_hit)
                 else:
                     e.hp = max(0, e.hp - (8 if unit.weapon_type == "MG" else 4))
                 self._add_enemy_status(e, "suppressed")
-            log.append(f"{unit.name} 压制 {primary.target or '中路'}，敌方推进受阻，装甲稳态/护盾被削弱。")
+            log.append(f"{unit.name} 压制 {primary.target or '中路'}，敌方推进受阻，装甲稳态/护盾被削弱。{personality_note}")
             return log
 
         if primary.action == "prioritize_target":
@@ -137,9 +172,10 @@ class RuleEngine:
                 return log
             dmg = self._shoot_damage(unit, enemy)
             enemy.hp = max(0, enemy.hp - dmg)
-            unit.ammo = max(0, unit.ammo - 6)
+            ammo_cost = 5 if unit.personality == "cautious" else 6
+            unit.ammo = max(0, unit.ammo - ammo_cost)
             enemy.exposed = True if dmg >= 20 else enemy.exposed
-            log.append(f"{unit.name} 优先处理 {enemy.name}，造成 {dmg} 伤害。")
+            log.append(f"{unit.name} 优先处理 {enemy.name}，造成 {dmg} 伤害。{personality_note}")
             return log
 
         if primary.action == "focus_fire":
@@ -170,16 +206,26 @@ class RuleEngine:
                 log.append(f"{unit.name} 判断追深风险过高，维持左翼阴影，等待窗口。")
                 self._add_status(unit, "hidden")
                 return log
+            if unit.personality == "veteran":
+                ready = any(e.exposed or e.pressure >= 45 for e in bf.living_enemies())
+                if not ready and bf.commander_policy not in ("aggressive", "rapid_clear"):
+                    unit.cover = min(86, unit.cover + 4)
+                    self._add_status(unit, "hidden")
+                    log.append(f"{unit.name} 没有盲目切入，先贴住左翼阴影等压制窗口。{personality_note}")
+                    return log
             unit.position = "enemy_left_flank"
-            unit.cover = max(25, unit.cover - 10)
+            cover_loss = 6 if unit.personality == "veteran" else 10
+            unit.cover = max(25, unit.cover - cover_loss)
             self._add_status(unit, "flanking")
             targets = [e for e in bf.living_enemies() if e.exposed or e.kind == "infantry"]
             if targets:
                 enemy = sorted(targets, key=lambda e: (e.kind != "infantry", e.hp))[0]
                 dmg = 24 + unit.initiative // 8
+                if unit.personality == "veteran":
+                    dmg += 5
                 enemy.hp = max(0, enemy.hp - dmg)
                 enemy.exposed = True
-                log.append(f"{unit.name} 从左翼切入，对 {enemy.name} 造成 {dmg} 伤害，并制造侧翼压力。")
+                log.append(f"{unit.name} 从左翼切入，对 {enemy.name} 造成 {dmg} 伤害，并制造侧翼压力。{personality_note}")
             else:
                 log.append(f"{unit.name} 绕后到位，但尚未找到安全开火窗口。")
             return log
@@ -195,22 +241,34 @@ class RuleEngine:
             if not condition_ok:
                 self._add_status(unit, "waiting_execution_window")
                 unit.pending_condition = primary.condition
-                log.append(f"{unit.name} 未提前暴露，继续等待 {enemy.name} 破盾后的处决窗口。")
+                if unit.personality == "bold" and "do_not_expose_before_condition" not in primary.constraints and bf.commander_policy in ("aggressive", "rapid_clear"):
+                    poke = 8
+                    enemy.shield = max(0, enemy.shield - poke)
+                    unit.cover = max(20, unit.cover - 4)
+                    log.append(f"{unit.name} 压不住进攻冲动，试探性逼近 {enemy.name}，削掉 {poke} 护盾但暴露上升。{personality_note}")
+                else:
+                    log.append(f"{unit.name} 未提前暴露，继续等待 {enemy.name} 破盾后的处决窗口。{personality_note}")
                 return log
             burst = 38 + unit.initiative // 6
             if "elite_killer" in unit.traits and enemy.kind in ("armored", "elite"):
                 burst += 12
+            if unit.personality == "bold":
+                burst += 6
+                unit.cover = max(20, unit.cover - 5)
             enemy.hp = max(0, enemy.hp - burst)
             unit.ammo = max(0, unit.ammo - 10)
             self._add_status(unit, "execution_spent")
-            log.append(f"{unit.name} 抓住窗口处决 {enemy.name}，短爆发造成 {burst} 伤害。")
+            log.append(f"{unit.name} 抓住窗口处决 {enemy.name}，短爆发造成 {burst} 伤害。{personality_note}")
             return log
 
         if primary.action == "advance":
             unit.position = "forward_cover"
-            unit.cover = max(20, unit.cover - 8)
+            cover_loss = 12 if unit.personality == "bold" else 5 if unit.personality == "cautious" else 8
+            unit.cover = max(20, unit.cover - cover_loss)
             self._add_status(unit, "advancing")
-            log.append(f"{unit.name} 推进到前沿掩体，获得视野但暴露上升。")
+            if unit.personality == "bold":
+                unit.morale = min(100, unit.morale + 3)
+            log.append(f"{unit.name} 推进到前沿掩体，获得视野但暴露上升。{personality_note}")
             return log
 
         if primary.action == "free_fire":
@@ -219,7 +277,7 @@ class RuleEngine:
                 dmg = self._shoot_damage(unit, enemy)
                 enemy.hp = max(0, enemy.hp - dmg)
                 unit.ammo = max(0, unit.ammo - 7)
-                log.append(f"{unit.name} 自由开火命中 {enemy.name}，造成 {dmg} 伤害。")
+                log.append(f"{unit.name} 自由开火命中 {enemy.name}，造成 {dmg} 伤害。{personality_note}")
             else:
                 log.append(f"{unit.name} 自由开火，但没有有效目标。")
             return log
@@ -342,6 +400,17 @@ class RuleEngine:
         if unit.personality == "bold" and enemy.exposed:
             damage += 4
         return max(4, damage)
+
+    def _personality_note(self, unit: Unit) -> str:
+        notes = {
+            "bold": "鲁莽性格让她更敢压窗口，但更容易暴露。",
+            "cautious": "谨慎性格让她更重视掩体和稳定射击。",
+            "veteran": "老练性格让她优先等待协同窗口。",
+            "steady": "稳定性格让压制节奏更持续。",
+            "rookie": "新人性格让她更依赖明确命令。",
+        }
+        note = notes.get(unit.personality)
+        return f" [{note}]" if note else ""
 
     def _add_status(self, unit: Unit, status: str) -> None:
         if status not in unit.status:
