@@ -62,6 +62,18 @@ python3 -m http.server 8000
 http://localhost:8000/web/
 ```
 
+带真实 LLM 输入框的本地 web demo：
+
+```bash
+python3 scripts/web_server.py --port 8001
+```
+
+然后打开：
+
+```text
+http://localhost:8001/web/
+```
+
 这个脚本必须调用 LLM。若 LLM 不可用，自然语言指挥评估会直接失败；底层 zero-ai 战斗仍可用 `mirror_map_sim.py` 单独运行。
 
 测试自定义一句话：

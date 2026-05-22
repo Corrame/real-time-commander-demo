@@ -27,6 +27,17 @@
         <button class="case-button" type="button" data-case="irrelevant_chat">闲聊</button>
       </section>
 
+      <section class="live-command" aria-label="live llm command">
+        <input
+          id="liveCommandInput"
+          type="text"
+          value="前排顶住，中后排别冲，优先集火残血。"
+          aria-label="输入自然语言命令"
+        />
+        <button id="runLiveCommand" type="button">LLM 解析并播放</button>
+        <button id="runLiveMatrix" type="button">跑五个按钮</button>
+      </section>
+
       <section class="battle-stage" aria-label="battle visualizer">
         <canvas id="battleCanvas" width="1100" height="620"></canvas>
       </section>

@@ -57,7 +57,7 @@ button:active {
   margin: 0 auto;
   padding: 24px 0 28px;
   display: grid;
-  grid-template-rows: auto auto minmax(320px, 1fr) auto;
+  grid-template-rows: auto auto auto minmax(320px, 1fr) auto;
   gap: 16px;
 }
 
@@ -110,6 +110,28 @@ h1 {
 .case-button.is-active {
   border-color: var(--gold);
   background: rgba(241, 201, 91, 0.14);
+}
+
+.live-command {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px 112px;
+  gap: 8px;
+}
+
+.live-command input {
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #0d0f13;
+  color: var(--text);
+  font: inherit;
+  padding: 0 12px;
+}
+
+.live-command input:focus {
+  border-color: var(--gold);
+  outline: none;
 }
 
 .battle-stage {
@@ -173,6 +195,10 @@ h1 {
 
   .command-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .live-command {
+    grid-template-columns: 1fr;
   }
 
   .status-grid {
