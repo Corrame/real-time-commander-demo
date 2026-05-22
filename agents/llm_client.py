@@ -37,7 +37,7 @@ class OpenAICompatibleClient:
         deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "")
         self.base_url = os.environ.get("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
         self.api_key = os.environ.get("LLM_API_KEY") or deepseek_key
-        self.model = os.environ.get("LLM_MODEL", "deepseek-v4-pro")
+        self.model = os.environ.get("LLM_MODEL", "deepseek-v4-flash")
         self.reasoning_effort = os.environ.get("LLM_REASONING_EFFORT", "high")
         self.thinking_type = os.environ.get("LLM_THINKING", "enabled")
         self.client = None
