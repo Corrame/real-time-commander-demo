@@ -37,6 +37,12 @@ DEEPSEEK_API_KEY=你的 DeepSeek API Key
 python3 scripts/nl_command_eval.py --runs 1000
 ```
 
+当前正式 1.0 证据表见：
+
+```text
+docs/1.0_EVIDENCE.md
+```
+
 这个脚本必须调用 LLM。若 LLM 不可用，自然语言指挥评估会直接失败；底层 zero-ai 战斗仍可用 `mirror_map_sim.py` 单独运行。
 
 测试自定义一句话：
