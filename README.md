@@ -1,188 +1,135 @@
 # Real-Time Commander Demo
 
-一个 **LLM 自然语言指挥影响胜率** 的最小证据 demo。
+**把传统自动战斗升级成代理指挥官，同时保留玩家一句话接管关键指挥的能力。**
 
-1.0 要验证的不是“LLM 会写漂亮战报”，而是：
+---
 
-> 玩家说自然语言，LLM 把它压缩成有限状态机命令；命令进入纯规则 3v3 小地图模拟；胜率真的随输入变化。
+## 问题
 
-核心链路：
+少前2的战斗有一个病：它看起来想做出 XCOM 式的战术决策层，但手操成本太高，玩家很容易退回自动战斗。决策层存在，但没有真正进入玩家体验。
 
-```text
-自然语言输入
--> LLM command interpreter
--> 有限 policy / FSM mode
--> 镜像 3v3 小地图纯规则模拟
--> 批量胜率统计
+《圣兽之王》有一个对称的病：编队、预设和策略系统很深，但难度压力不够，照推荐方案也能过。深度存在，但没有被充分需要。
+
+两个病，殊途同归：**战斗系统里明明存在决策，但玩家没有以低成本、高反馈的方式真正参与进去。**
+
+---
+
+## 三种模式
+
+### 一、纯规则自动战斗
+
+碾压局、日常本、低压副本，不需要任何 LLM。直接状态机跑即可。
+
+### 二、玩家自然语言指挥
+
+玩家可以直接下一句话：
+
+> 集火残血，前排顶住。
+
+系统映射成角色状态机指令：
+
+```
+玩家命令 → 命令编译器 → 状态机
 ```
 
-## 1.0 主入口
+玩家本人就是指挥官，不再经过一层战术 AI。
 
-先配置 DeepSeek：
+### 三、战术 AI 代理指挥
+
+玩家不想操作时，战术 AI 替代传统自动战斗，读取战场状态，像代理指挥官一样下命令：
+
+```
+战场状态 → 战术 LLM → 战术命令 → 命令编译器 → 状态机
+```
+
+传统自动战斗是"角色自己按规则打"。代理指挥是"系统先判断战局，再给角色下命令"。
+
+---
+
+## 证据
+
+在 3v3 镜像小地图上跑了一万局模拟，对手为默认自动战斗：
+
+| 输入 | 胜率 |
+|---:|---:|
+| 好指挥：集火残血 | **96.3%** |
+| 不指挥 | 32.6% |
+| 莽夫冲锋 | 0.3% |
+| 无关闲聊 | 31.1% |
+
+无关闲聊不会被洗成好策略。错误指挥带来坏结果。正确指挥带来高胜率。
+
+**指挥质量本身会显著改变战局**——这不是"随便输入一句话就赢"。
+
+对手换成会打的策略后，差距仍然成立：不指挥被抹平到 0.0%，好好指挥能打成五五。
+
+完整证据与稳健性复测见 [`docs/1.0_EVIDENCE.md`](docs/1.0_EVIDENCE.md) 和 [`docs/1.0_EVIDENCE_ROBUSTNESS.md`](docs/1.0_EVIDENCE_ROBUSTNESS.md)。
+
+---
+
+## Visual Proof
+
+网页 demo 用左右对照展示自然语言指挥和 baseline 的行为差异：
+
+![fig1_chain](docs/figures/fig1_chain.png)
+
+```
+# 静态模式（无需 LLM，内置 5 个预置场景）
+python3 -m http.server 8000
+# 打开 http://localhost:8000/web/
+
+# 实时 LLM 模式（需要 API key）
+python3 scripts/web_server.py --port 8001
+# 打开 http://localhost:8001/web/
+```
+
+---
+
+## 复现
 
 ```bash
 pip3 install openai
-cp .env.example .env
+cp .env.example .env   # 填入 DEEPSEEK_API_KEY
 ```
 
-编辑 `.env`：
+纯规则模拟（无需 LLM）：
 
-```text
-DEEPSEEK_API_KEY=你的 DeepSeek API Key
+```bash
+python3 scripts/mirror_map_sim.py --runs 10000 --jitter 1 --red-policy good_focus --blue-policy dumb
 ```
 
-运行自然语言胜率评估：
+自然语言 → 胜率评估（需要 LLM）：
 
 ```bash
 python3 scripts/nl_command_eval.py --runs 1000
+python3 scripts/nl_command_eval.py --command "集火残血，前排顶住。"
 ```
 
-输出结构化 JSON，用于接回 web demo 或其他展示层：
+---
 
-```bash
-python3 scripts/nl_command_eval.py --runs 1000 --format json --output docs/1.0_EVIDENCE.json
+## 成本
+
+按 deepseek-v4-flash 输出价 2 元 / 百万 tokens 粗估：
+
+```
+6,300 tokens / 小时 ≈ 0.0126 元 / 小时
+20,000 tokens / 小时 ≈ 0.04 元 / 小时
 ```
 
-当前正式 1.0 证据表见：
+主要问题不是 token 成本，而是代理指挥质量、状态机执行稳定性和战术反馈体验。
 
-```text
-docs/1.0_EVIDENCE.md
-docs/1.0_EVIDENCE.json
-```
+---
 
-极简 web 可视化 demo：
+## 验什么
 
-```bash
-python3 -m http.server 8000
-```
+- 代理指挥是否比传统自动战斗更强
+- 玩家一句话指挥是否真的有战术反馈
+- 角色状态机能否稳定执行命令
+- 战术 AI 的判断是否足够像指挥官
+- 这套东西能否嵌进少前式战斗系统
 
-然后打开：
-
-```text
-http://localhost:8000/web/
-```
-
-带真实 LLM 输入框的本地 web demo：
-
-```bash
-python3 scripts/web_server.py --port 8001
-```
-
-然后打开：
-
-```text
-http://localhost:8001/web/
-```
-
-这个脚本必须调用 LLM。若 LLM 不可用，自然语言指挥评估会直接失败；底层 zero-ai 战斗仍可用 `mirror_map_sim.py` 单独运行。
-
-测试自定义一句话：
-
-```bash
-python3 scripts/nl_command_eval.py --command "前排顶住，中后排别冲，优先集火残血。"
-```
-
-## 1.0 测试矩阵
-
-```text
-zero_input       空输入 / 不说话
-                 -> dumb/default
-                 -> 接近 baseline
-
-good_command     “前排顶住，中后排别冲，优先集火残血”
-                 -> good_focus
-                 -> 胜率显著提升
-
-bad_charge       “所有人冲出去，不管阵型，直接追对面后排”
-                 -> bad_charge
-                 -> 胜率显著下降
-
-cower_command    “全员趴下，不许开火”
-                 -> cower_all
-                 -> 普通交火中几乎必败
-
-irrelevant_chat  “今天天气不错”
-                 -> hesitate
-                 -> AI/小队愣一拍，不应自动变成好策略，胜率略低于 baseline
-```
-
-## 3v3 小地图底盘
-
-双方各 3 个完全相同的单位：
-
-```text
-front == front
-mid   == mid
-back  == back
-```
-
-它们在 7x3 小地图上按同一套规则移动和交火。无随机时应同归；加入对称伤害浮动后，批量胜率应接近五五开：
-
-```bash
-python3 scripts/mirror_map_sim.py
-python3 scripts/mirror_map_sim.py --runs 10000 --jitter 1
-```
-
-底盘支持最小状态机命令协议：
-
-```text
-mode = attack_nearest | focus_weakest | focus_target | hold_position | hold_line
-     | keep_range | retreat | advance | cower
-target = enemy_id | role | weakest | nearest | None
-```
-
-命令不会直接加数值，只改变选目标和移动方式。
-
-当前内置 policy：
-
-```text
-dumb        默认傻瓜自动：打最近，够射程就打，不会集火
-good_focus  常识指挥：前排卡线，中后排集火残血/保持距离
-bad_charge  危险指令：全员无视眼前目标，硬追对面后排
-hold_all    全员原地不动，但仍会开火
-cower_all   全员卧倒/发呆：原地不动且不攻击
-hesitate    无关闲聊/干扰指挥：短暂迟疑，随后回到默认傻瓜自动
-```
-
-手动验证 policy 是否影响胜率：
-
-```bash
-python3 scripts/mirror_map_sim.py --runs 10000 --jitter 1 --red-policy dumb --blue-policy dumb
-python3 scripts/mirror_map_sim.py --runs 10000 --jitter 1 --red-policy good_focus --blue-policy dumb
-python3 scripts/mirror_map_sim.py --runs 10000 --jitter 1 --red-policy bad_charge --blue-policy dumb
-python3 scripts/mirror_map_sim.py --runs 10000 --jitter 1 --red-policy cower_all --blue-policy dumb
-```
-
-## 抽象 baseline
-
-`baseline_sim.py` 是更抽象的血条互殴校准工具，用来确认 0.1 / 0.2 的同归和五五开，不是 1.0 主证据。
-
-```bash
-python3 scripts/baseline_sim.py --config 0.1
-python3 scripts/baseline_sim.py --config 0.2 --runs 1000
-```
-
-## 旧遭遇战归档
-
-早期“四人战术小队 vs 装甲/无人机”的文字遭遇战已经归档到：
-
-```text
-archive/legacy_encounter/
-```
-
-它证明过 DeepSeek 能把战术中文翻译成结构化 orders，但不再是 1.0 主路径。当前主路径只保留：
-
-```text
-scripts/nl_command_eval.py
-scripts/mirror_map_sim.py
-scripts/baseline_sim.py
-game/mirror_map_sim.py
-game/baseline_sim.py
-agents/llm_client.py
-```
+---
 
 ## 版权边界
 
-本项目是原创玩法机制原型。
-
-它不使用任何现有 IP 的角色、名称、Logo、美术、音乐、剧情设定、世界观术语或商标。
+本项目是原创玩法机制原型，不使用任何现有 IP 的角色、名称、Logo、美术、音乐、剧情设定、世界观术语或商标。
