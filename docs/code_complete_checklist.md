@@ -10,18 +10,7 @@
 
 这部分不需要 API key，是证据的物理底盘。**全过才能进下一步。**
 
-### 1. baseline_sim 校准自洽
-
-```bash
-python3 scripts/baseline_sim.py --config 0.1
-python3 scripts/baseline_sim.py --config 0.2 --runs 1000
-```
-
-- [ ] config 0.1 确定性模式下，结果可稳定重现
-- [ ] config 0.2 随机模式下，批量胜率接近 50:50
-- [ ] 无异常、无崩溃、无 Python traceback
-
-### 2. mirror_map_sim 单局运行
+### 1. mirror_map_sim 单局运行
 
 ```bash
 python3 scripts/mirror_map_sim.py --runs 1 --jitter 1 --red-policy good_focus --blue-policy dumb

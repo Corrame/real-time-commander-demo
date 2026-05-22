@@ -31,7 +31,6 @@ Allowed policies:
 Output JSON only:
 {
   "policy": "good_focus",
-  "confidence": 0.0,
   "reason": "short Chinese explanation"
 }
 
@@ -56,11 +55,12 @@ CASES = [
     EvalCase("good_command", "前排顶住，中后排别冲，优先集火残血。"),
     EvalCase("bad_charge", "所有人冲出去，不管阵型，直接追对面后排。"),
     EvalCase("cower_command", "全员趴下，不许开火。"),
+    EvalCase("hold_command", "全员原地不动，等对方过来，进入射程再开火。"),
     EvalCase("irrelevant_chat", "今天天气不错。"),
 ]
 
 
-def interpret_with_llm(command: str) -> tuple[str, float, str, bool]:
+def interpret_with_llm(command: str) -> tuple[str, str, bool]:
     client = OpenAICompatibleClient()
     if not client.enabled:
         raise LLMError("LLM disabled or not configured")
@@ -69,20 +69,16 @@ def interpret_with_llm(command: str) -> tuple[str, float, str, bool]:
     return clean_policy_result(data, used_llm=True)
 
 
-def clean_policy_result(data: dict[str, Any], used_llm: bool) -> tuple[str, float, str, bool]:
+def clean_policy_result(data: dict[str, Any], used_llm: bool) -> tuple[str, str, bool]:
     policy = str(data.get("policy") or "hesitate").strip()
     if policy not in POLICIES:
         policy = "hesitate"
-    try:
-        confidence = float(data.get("confidence", 0.0))
-    except (TypeError, ValueError):
-        confidence = 0.0
     reason = str(data.get("reason") or "")
-    return policy, max(0.0, min(confidence, 1.0)), reason, used_llm
+    return policy, reason, used_llm
 
 
 def evaluate_case(case: EvalCase, runs: int, seed: int, jitter: int) -> dict[str, Any]:
-    policy, confidence, reason, used_llm = interpret_with_llm(case.command)
+    policy, reason, used_llm = interpret_with_llm(case.command)
 
     stats = run_batch(
         runs=runs,
@@ -96,7 +92,6 @@ def evaluate_case(case: EvalCase, runs: int, seed: int, jitter: int) -> dict[str
         "command": case.command,
         "llm": used_llm,
         "policy": policy,
-        "confidence": confidence,
         "reason": reason,
         "stats": {
             "runs": stats.runs,
@@ -120,7 +115,6 @@ def format_case_line(result: dict[str, Any]) -> str:
         f"{result['case']}\t"
         f"llm={'yes' if result['llm'] else 'no'}\t"
         f"policy={result['policy']}\t"
-        f"confidence={result['confidence']:.2f}\t"
         f"red_win={stats['red_win_rate']:.1%}\t"
         f"blue_win={stats['blue_win_rate']:.1%}\t"
         f"draw={stats['draw_rate']:.1%}\t"
@@ -167,7 +161,7 @@ def main() -> None:
             print(text)
         return
 
-    print("case\tllm\tpolicy\tconfidence\tred_win\tblue_win\tdraw\tavg_winner_hp\treason")
+    print("case\tllm\tpolicy\tred_win\tblue_win\tdraw\tavg_winner_hp\treason")
     for result in results:
         print(format_case_line(result))
 
