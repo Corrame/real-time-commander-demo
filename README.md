@@ -116,6 +116,18 @@ python3 scripts/baseline_sim.py --config 0.2 --runs 1000
 
 这个阶段的目标是先得到一个可统计的 zero-ai baseline，再比较后续 LLM 低频介入或人类接入是否改变胜率。
 
+镜像 3v3 小地图 baseline：
+
+```bash
+python3 scripts/mirror_map_sim.py
+```
+
+双方各 3 个完全相同的单位，在 7x3 小地图上按同一套自动规则移动和交火。无随机时应同归；加入对称伤害浮动后，批量胜率应接近五五开：
+
+```bash
+python3 scripts/mirror_map_sim.py --runs 10000 --jitter 1
+```
+
 实时观看一场每 tick 间隔 5 秒的自动战斗：
 
 ```bash
