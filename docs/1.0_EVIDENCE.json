@@ -5,21 +5,25 @@
   "runs": 1000,
   "seed": 42,
   "jitter": 1,
-  "model": "deepseek-v4-flash",
   "cases": [
     {
       "case": "zero_input",
       "command": "",
       "llm": true,
       "policy": "dumb",
-      "confidence": 1.0,
       "reason": "空输入，默认简单自动化",
       "stats": {
         "runs": 1000,
+        "red_wins": 333,
+        "blue_wins": 305,
+        "draws": 362,
         "red_win_rate": 0.333,
         "blue_win_rate": 0.305,
         "draw_rate": 0.362,
-        "avg_winner_hp": 2.47
+        "avg_ticks": 7.243,
+        "avg_red_hp": 0.856,
+        "avg_blue_hp": 0.72,
+        "avg_winner_hp": 2.470219435736677
       }
     },
     {
@@ -27,14 +31,19 @@
       "command": "前排顶住，中后排别冲，优先集火残血。",
       "llm": true,
       "policy": "good_focus",
-      "confidence": 0.95,
-      "reason": "指令要求前排顶住、中后排不冲、集火残血，符合好战术策略。",
+      "reason": "命令要求前排顶住、中后排不冲并集火残血，符合良好战术",
       "stats": {
         "runs": 1000,
+        "red_wins": 963,
+        "blue_wins": 0,
+        "draws": 37,
         "red_win_rate": 0.963,
         "blue_win_rate": 0.0,
         "draw_rate": 0.037,
-        "avg_winner_hp": 19.67
+        "avg_ticks": 10.556,
+        "avg_red_hp": 18.944,
+        "avg_blue_hp": 0,
+        "avg_winner_hp": 19.671858774662514
       }
     },
     {
@@ -42,14 +51,19 @@
       "command": "所有人冲出去，不管阵型，直接追对面后排。",
       "llm": true,
       "policy": "bad_charge",
-      "confidence": 1.0,
-      "reason": "命令明确要求全员冲锋、忽视阵型、追击后排，属于鲁莽冲锋策略。",
+      "reason": "命令所有人不顾阵型冲出去追对面后排，属于鲁莽冲锋策略",
       "stats": {
         "runs": 1000,
+        "red_wins": 3,
+        "blue_wins": 997,
+        "draws": 0,
         "red_win_rate": 0.003,
         "blue_win_rate": 0.997,
         "draw_rate": 0.0,
-        "avg_winner_hp": 33.54
+        "avg_ticks": 9.842,
+        "avg_red_hp": 0.003,
+        "avg_blue_hp": 33.536,
+        "avg_winner_hp": 33.539
       }
     },
     {
@@ -57,14 +71,39 @@
       "command": "全员趴下，不许开火。",
       "llm": true,
       "policy": "cower_all",
-      "confidence": 0.95,
-      "reason": "命令要求全员趴下且不许开火，符合cower_all策略",
+      "reason": "命令所有人趴下且不许开火，完全放弃行动。",
       "stats": {
         "runs": 1000,
+        "red_wins": 0,
+        "blue_wins": 1000,
+        "draws": 0,
         "red_win_rate": 0.0,
         "blue_win_rate": 1.0,
         "draw_rate": 0.0,
-        "avg_winner_hp": 86.0
+        "avg_ticks": 9.108,
+        "avg_red_hp": 0,
+        "avg_blue_hp": 86,
+        "avg_winner_hp": 86
+      }
+    },
+    {
+      "case": "hold_command",
+      "command": "全员原地不动，等对方过来，进入射程再开火。",
+      "llm": true,
+      "policy": "hold_all",
+      "reason": "命令要求全员原地不动，等敌人进入射程再开火，符合保持位置但进入射程后开火的策略",
+      "stats": {
+        "runs": 1000,
+        "red_wins": 495,
+        "blue_wins": 209,
+        "draws": 296,
+        "red_win_rate": 0.495,
+        "blue_win_rate": 0.209,
+        "draw_rate": 0.296,
+        "avg_ticks": 11.088,
+        "avg_red_hp": 2.427,
+        "avg_blue_hp": 1.147,
+        "avg_winner_hp": 5.076704545454546
       }
     },
     {
@@ -72,14 +111,19 @@
       "command": "今天天气不错。",
       "llm": true,
       "policy": "hesitate",
-      "confidence": 0.9,
-      "reason": "用户谈论天气，属于无关闲聊，导致小队犹豫",
+      "reason": "用户谈论天气，属于无关对话，导致小队犹豫",
       "stats": {
         "runs": 1000,
+        "red_wins": 311,
+        "blue_wins": 316,
+        "draws": 373,
         "red_win_rate": 0.311,
         "blue_win_rate": 0.316,
         "draw_rate": 0.373,
-        "avg_winner_hp": 2.55
+        "avg_ticks": 8.227,
+        "avg_red_hp": 0.805,
+        "avg_blue_hp": 0.791,
+        "avg_winner_hp": 2.5454545454545454
       }
     }
   ]

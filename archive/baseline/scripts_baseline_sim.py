@@ -8,6 +8,10 @@ import random
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+# ARCHIVED — this script requires game.baseline_sim which was also archived.
+# The code was moved to archive/baseline/ as part of refactoring.
+# It no longer runs from the main project path; kept for reference.
+
 from game.baseline_sim import CONFIGS, run_batch, simulate_battle
 
 

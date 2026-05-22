@@ -55,6 +55,12 @@ const cases = {
     result: "red 31.1% / blue 31.6% / draw 37.3%",
     note: "无关闲聊让红方前两拍迟疑。",
   },
+  hold_command: {
+    command: "全员原地不动，等对方过来，进入射程再开火。",
+    policy: "hold_all",
+    result: "red 49.5% / blue 20.9% / draw 29.6%",
+    note: "原地固守但保持交火。",
+  },
 };
 
 let activeCase = "zero_input";
@@ -217,6 +223,7 @@ function commandFor(unitData, policy, currentTick) {
     return { mode: "keep_range", target: "weakest" };
   }
   if (policy === "bad_charge") return { mode: "advance", target: "back" };
+  if (policy === "hold_all") return { mode: "hold_position" };
   if (policy === "cower_all") return { mode: "cower" };
   if (policy === "hesitate" && currentTick <= 2) return { mode: "cower" };
   return { mode: "attack_nearest" };
