@@ -1,12 +1,11 @@
 const canvas = document.getElementById("battleCanvas");
 const ctx = canvas.getContext("2d");
 
-const caseButtons = [...document.querySelectorAll(".case-button")];
+const presetButtons = [...document.querySelectorAll(".preset-button")];
 const playPauseButton = document.getElementById("playPause");
 const restartButton = document.getElementById("restart");
 const liveCommandInput = document.getElementById("liveCommandInput");
 const runLiveCommandButton = document.getElementById("runLiveCommand");
-const runLiveMatrixButton = document.getElementById("runLiveMatrix");
 const commandText = document.getElementById("commandText");
 const policyText = document.getElementById("policyText");
 const tickText = document.getElementById("tickText");
@@ -56,16 +55,6 @@ const cases = {
     note: "无关闲聊让红方前两拍迟疑。",
   },
 };
-
-const caseLabels = {
-  zero_input: "不说话",
-  good_command: "好指令",
-  bad_charge: "坏指令",
-  cower_command: "趴下",
-  irrelevant_chat: "闲聊",
-};
-
-const matrixOrder = ["zero_input", "good_command", "bad_charge", "cower_command", "irrelevant_chat"];
 
 let activeCase = "zero_input";
 let units = createUnits();
@@ -134,7 +123,6 @@ function applyLiveResult(result, targetCase = "live_command") {
     note: result.reason || "LLM returned a policy.",
   };
   activeCase = targetCase;
-  caseButtons.forEach((item) => item.classList.remove("is-active"));
   playing = true;
   playPauseButton.textContent = "暂停";
   resetBattle();
@@ -156,7 +144,9 @@ async function callLiveCommand(command, runs = 1000) {
 async function runLiveCommand() {
   const command = liveCommandInput.value;
   runLiveCommandButton.disabled = true;
-  runLiveMatrixButton.disabled = true;
+  presetButtons.forEach((button) => {
+    button.disabled = true;
+  });
   policyText.textContent = "正在 call LLM，当场解析命令...";
   resultText.textContent = "等待结果";
   try {
@@ -166,36 +156,10 @@ async function runLiveCommand() {
     policyText.textContent = `LLM 调用失败：${error.message}`;
   } finally {
     runLiveCommandButton.disabled = false;
-    runLiveMatrixButton.disabled = false;
+    presetButtons.forEach((button) => {
+      button.disabled = false;
+    });
   }
-}
-
-async function runLiveMatrix() {
-  runLiveCommandButton.disabled = true;
-  runLiveMatrixButton.disabled = true;
-  for (let index = 0; index < matrixOrder.length; index += 1) {
-    const key = matrixOrder[index];
-    const source = cases[key];
-    policyText.textContent = `正在跑 ${caseLabels[key]} (${index + 1}/${matrixOrder.length})...`;
-    resultText.textContent = "每个按钮都会当场 call LLM";
-    try {
-      const result = await callLiveCommand(source.command === "（不说话）" ? "" : source.command, 1000);
-      cases[key] = {
-        command: result.command || "（不说话）",
-        policy: result.policy,
-        result: formatStats(result.stats),
-        note: result.reason || source.note,
-      };
-      activeCase = key;
-      caseButtons.forEach((item) => item.classList.toggle("is-active", item.dataset.case === key));
-      resetBattle();
-    } catch (error) {
-      policyText.textContent = `${caseLabels[key]} 失败：${error.message}`;
-      break;
-    }
-  }
-  runLiveCommandButton.disabled = false;
-  runLiveMatrixButton.disabled = false;
 }
 
 function formatStats(stats) {
@@ -530,13 +494,11 @@ function animationFrame(now) {
   requestAnimationFrame(animationFrame);
 }
 
-caseButtons.forEach((button) => {
+presetButtons.forEach((button) => {
   button.addEventListener("click", () => {
-    activeCase = button.dataset.case;
-    caseButtons.forEach((item) => item.classList.toggle("is-active", item === button));
-    playing = true;
-    playPauseButton.textContent = "暂停";
-    resetBattle();
+    liveCommandInput.value = button.dataset.command || "";
+    presetButtons.forEach((item) => item.classList.toggle("is-active", item === button));
+    runLiveCommand();
   });
 });
 
@@ -552,8 +514,6 @@ restartButton.addEventListener("click", () => {
 });
 
 runLiveCommandButton.addEventListener("click", runLiveCommand);
-
-runLiveMatrixButton.addEventListener("click", runLiveMatrix);
 
 liveCommandInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {

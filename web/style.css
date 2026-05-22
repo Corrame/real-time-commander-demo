@@ -102,19 +102,19 @@ h1 {
   gap: 8px;
 }
 
-.case-button {
+.preset-button {
   padding: 0 10px;
   white-space: nowrap;
 }
 
-.case-button.is-active {
+.preset-button.is-active {
   border-color: var(--gold);
   background: rgba(241, 201, 91, 0.14);
 }
 
 .live-command {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 150px 112px;
+  grid-template-columns: minmax(0, 1fr) 150px;
   gap: 8px;
 }
 
