@@ -128,6 +128,29 @@ python3 scripts/mirror_map_sim.py
 python3 scripts/mirror_map_sim.py --runs 10000 --jitter 1
 ```
 
+这个小地图底盘支持最小状态机命令协议：
+
+```text
+mode = attack_nearest | focus_weakest | focus_target | hold_position | hold_line | keep_range | retreat | advance
+target = enemy_id | role | weakest | nearest | None
+```
+
+命令不会直接加数值，只改变选目标和移动方式。当前内置 policy：
+
+```text
+dumb        默认傻瓜自动：打最近，够射程就打，不会集火
+good_focus  常识指挥：前排卡线，中后排集火残血/保持距离
+bad_charge  危险指令：全员无视眼前目标，硬追对面后排
+hold_all    全员原地不动
+```
+
+对比命令是否真的影响胜率：
+
+```bash
+python3 scripts/mirror_map_sim.py --runs 10000 --jitter 1 --red-policy good_focus --blue-policy dumb
+python3 scripts/mirror_map_sim.py --runs 10000 --jitter 1 --red-policy bad_charge --blue-policy dumb
+```
+
 实时观看一场每 tick 间隔 5 秒的自动战斗：
 
 ```bash

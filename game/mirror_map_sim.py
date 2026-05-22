@@ -34,6 +34,12 @@ class MapUnit:
 
 
 @dataclass(frozen=True)
+class UnitCommand:
+    mode: str
+    target: str | None = None
+
+
+@dataclass(frozen=True)
 class MirrorResult:
     winner: str
     ticks: int
@@ -64,6 +70,19 @@ SPECS = [
     UnitSpec(role="back", hp=22, attack=8, attack_range=3),
 ]
 
+COMMAND_MODES = {
+    "attack_nearest",
+    "focus_weakest",
+    "focus_target",
+    "hold_position",
+    "hold_line",
+    "keep_range",
+    "retreat",
+    "advance",
+}
+
+POLICIES = {"dumb", "good_focus", "bad_charge", "hold_all"}
+
 
 def create_units() -> list[MapUnit]:
     red_positions = [(1, 1), (0, 0), (0, 2)]
@@ -81,8 +100,16 @@ def create_units() -> list[MapUnit]:
     return units
 
 
-def simulate_mirror_battle(seed: int = 42, config: MapConfig | None = None, jitter: int = 0) -> MirrorResult:
+def simulate_mirror_battle(
+    seed: int = 42,
+    config: MapConfig | None = None,
+    jitter: int = 0,
+    red_policy: str = "dumb",
+    blue_policy: str = "dumb",
+) -> MirrorResult:
     config = config or MapConfig()
+    validate_policy(red_policy)
+    validate_policy(blue_policy)
     rng = random.Random(seed)
     units = create_units()
 
@@ -99,12 +126,17 @@ def simulate_mirror_battle(seed: int = 42, config: MapConfig | None = None, jitt
 
         for unit in alive:
             enemies = blue_alive if unit.side == "red" else red_alive
-            target = choose_target(unit, enemies)
+            allies = red_alive if unit.side == "red" else blue_alive
+            policy = red_policy if unit.side == "red" else blue_policy
+            command = command_for(unit, allies, enemies, policy)
+            target = choose_target(unit, enemies, command)
             if distance(unit, target) <= unit.spec.attack_range:
                 damage = damage_rolls.get(unit.id, unit.spec.attack)
                 attacks.append((unit, target, damage))
             else:
-                moves.append((unit, *next_step(unit, target, config)))
+                step = next_step_for_command(unit, target, enemies, command, config)
+                if step != (unit.x, unit.y):
+                    moves.append((unit, *step))
 
         apply_simultaneous_moves(moves, alive)
 
@@ -156,8 +188,68 @@ def apply_simultaneous_moves(moves: list[tuple[MapUnit, int, int]], alive: list[
         unit.y = ny
 
 
-def choose_target(unit: MapUnit, enemies: list[MapUnit]) -> MapUnit:
+def validate_policy(policy: str) -> None:
+    if policy not in POLICIES:
+        allowed = ", ".join(sorted(POLICIES))
+        raise ValueError(f"Unknown policy {policy!r}. Allowed: {allowed}")
+
+
+def command_for(unit: MapUnit, allies: list[MapUnit], enemies: list[MapUnit], policy: str) -> UnitCommand:
+    if policy == "good_focus":
+        if unit.spec.role == "front":
+            return UnitCommand("hold_line")
+        if unit.spec.role == "mid":
+            return UnitCommand("focus_weakest")
+        return UnitCommand("keep_range", target="weakest")
+    if policy == "bad_charge":
+        return UnitCommand("advance", target="back")
+    if policy == "hold_all":
+        return UnitCommand("hold_position")
+    return UnitCommand("attack_nearest")
+
+
+def choose_target(unit: MapUnit, enemies: list[MapUnit], command: UnitCommand) -> MapUnit:
+    if command.target and command.target not in ("weakest", "nearest"):
+        for enemy in enemies:
+            if enemy.id == command.target or enemy.spec.role == command.target:
+                return enemy
+    if command.mode == "focus_weakest" or command.target == "weakest":
+        return sorted(enemies, key=lambda enemy: (enemy.hp, distance(unit, enemy), enemy.id))[0]
     return sorted(enemies, key=lambda enemy: (distance(unit, enemy), enemy.hp, enemy.id))[0]
+
+
+def next_step_for_command(
+    unit: MapUnit,
+    target: MapUnit,
+    enemies: list[MapUnit],
+    command: UnitCommand,
+    config: MapConfig,
+) -> tuple[int, int]:
+    if command.mode == "hold_position":
+        return unit.x, unit.y
+    if command.mode == "hold_line":
+        guard_x = 2 if unit.side == "red" else config.width - 3
+        if unit.x != guard_x:
+            return unit.x + sign(guard_x - unit.x), unit.y
+        return unit.x, unit.y
+    if command.mode == "retreat":
+        return retreat_step(unit, config)
+    if command.mode == "keep_range":
+        nearest = sorted(enemies, key=lambda enemy: distance(unit, enemy))[0]
+        if distance(unit, nearest) <= max(1, unit.spec.attack_range - 1):
+            return retreat_step(unit, config)
+        if distance(unit, target) > unit.spec.attack_range:
+            return next_step(unit, target, config)
+        return unit.x, unit.y
+    return next_step(unit, target, config)
+
+
+def retreat_step(unit: MapUnit, config: MapConfig) -> tuple[int, int]:
+    home_x = 0 if unit.side == "red" else config.width - 1
+    dx = sign(home_x - unit.x)
+    if dx:
+        return unit.x + dx, unit.y
+    return unit.x, unit.y
 
 
 def next_step(unit: MapUnit, target: MapUnit, config: MapConfig) -> tuple[int, int]:
@@ -217,8 +309,22 @@ def summarize(units: list[MapUnit], ticks: int) -> MirrorResult:
     )
 
 
-def run_batch(runs: int, seed: int, jitter: int = 0) -> MirrorBatchStats:
-    results = [simulate_mirror_battle(seed=seed + index, jitter=jitter) for index in range(runs)]
+def run_batch(
+    runs: int,
+    seed: int,
+    jitter: int = 0,
+    red_policy: str = "dumb",
+    blue_policy: str = "dumb",
+) -> MirrorBatchStats:
+    results = [
+        simulate_mirror_battle(
+            seed=seed + index,
+            jitter=jitter,
+            red_policy=red_policy,
+            blue_policy=blue_policy,
+        )
+        for index in range(runs)
+    ]
     red_wins = sum(1 for result in results if result.winner == "red")
     blue_wins = sum(1 for result in results if result.winner == "blue")
     draws = runs - red_wins - blue_wins
