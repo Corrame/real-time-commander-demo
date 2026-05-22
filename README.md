@@ -97,3 +97,15 @@ Commander >
 ```bash
 python3 scripts/smoke_demo.py
 ```
+
+实时观看一场每 tick 间隔 1 秒的脚本战斗：
+
+```bash
+python3 scripts/realtime_demo.py
+```
+
+调整刷新间隔：
+
+```bash
+python3 scripts/realtime_demo.py --interval 0.5
+```
