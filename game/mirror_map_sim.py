@@ -79,9 +79,10 @@ COMMAND_MODES = {
     "keep_range",
     "retreat",
     "advance",
+    "cower",
 }
 
-POLICIES = {"dumb", "good_focus", "bad_charge", "hold_all"}
+POLICIES = {"dumb", "good_focus", "bad_charge", "hold_all", "cower_all"}
 
 
 def create_units() -> list[MapUnit]:
@@ -129,6 +130,8 @@ def simulate_mirror_battle(
             allies = red_alive if unit.side == "red" else blue_alive
             policy = red_policy if unit.side == "red" else blue_policy
             command = command_for(unit, allies, enemies, policy)
+            if command.mode == "cower":
+                continue
             target = choose_target(unit, enemies, command)
             if distance(unit, target) <= unit.spec.attack_range:
                 damage = damage_rolls.get(unit.id, unit.spec.attack)
@@ -205,6 +208,8 @@ def command_for(unit: MapUnit, allies: list[MapUnit], enemies: list[MapUnit], po
         return UnitCommand("advance", target="back")
     if policy == "hold_all":
         return UnitCommand("hold_position")
+    if policy == "cower_all":
+        return UnitCommand("cower")
     return UnitCommand("attack_nearest")
 
 
@@ -226,6 +231,8 @@ def next_step_for_command(
     config: MapConfig,
 ) -> tuple[int, int]:
     if command.mode == "hold_position":
+        return unit.x, unit.y
+    if command.mode == "cower":
         return unit.x, unit.y
     if command.mode == "hold_line":
         guard_x = 2 if unit.side == "red" else config.width - 3
