@@ -145,7 +145,7 @@ python3 scripts/nl_command_eval.py --runs 1000
 python3 scripts/nl_command_eval.py --command "集火残血，前排顶住。"
 ```
 
-公开前/交接检查见 [`docs/code_complete_checklist.md`](docs/code_complete_checklist.md)。该 checklist 是工程验收清单；当前公开仓库以本 README 和 `AGENTS.md` 的仓库分叉规则为准：开发改动先进入私有 `real-time-commander-demo-dev`，公开仓库的 commit/push 需要按公开叙事审慎处理。
+交接/发布检查见 [`docs/code_complete_checklist.md`](docs/code_complete_checklist.md)。该 checklist 是工程验收清单；当前仓库按公开单仓处理：可以 commit/push，但每次提交都应按公开叙事审查，push 前确认 `git status`、staged diff 和最近提交，避免带入 secrets、本地产物、scratch 或未验收改动。
 
 ---
 

@@ -80,11 +80,12 @@ python3 -c "from agents.llm_client import OpenAICompatibleClient; c=OpenAICompat
 python3 scripts/nl_command_eval.py --runs 1000
 ```
 
-- [ ] 5 个 case 均返回有效的 policy（非空，在 POLICIES 集合内）
+- [ ] 6 个 case 均返回有效的 policy（非空，在 POLICIES 集合内）
 - [ ] zero_input → dumb
 - [ ] good_command → good_focus
 - [ ] bad_charge → bad_charge
 - [ ] cower_command → cower_all
+- [ ] hold_command → hold_all
 - [ ] irrelevant_chat → hesitate（不被洗成 good）
 - [ ] 胜率方向与证据表一致（好指挥赢、莽夫死、闲聊不改变胜率）
 
@@ -204,7 +205,7 @@ python3 scripts/mirror_map_sim.py --runs 10000 --jitter 1 --red-policy good_focu
 
 ### 18. LLM 完整链路可跑
 
-- [ ] 填入有效 API key 后 `nl_command_eval.py` 5 场景矩阵全部通过
+- [ ] 填入有效 API key 后 `nl_command_eval.py` 6 场景矩阵全部通过
 - [ ] `web_server.py` 可启动并提供完整功能
 
 ### 19. README 与代码一致
@@ -217,7 +218,7 @@ python3 scripts/mirror_map_sim.py --runs 10000 --jitter 1 --red-policy good_focu
 
 ## 六、判定规则
 
-### 硬条件（全过才能公开）
+### 硬条件（发布/交接前必须全过）
 
 ```text
 [ ] 纯规则模拟的 5 个 policy 组合胜率方向成立（第 3-4 项）
@@ -247,25 +248,32 @@ python3 scripts/mirror_map_sim.py --runs 10000 --jitter 1 --red-policy good_focu
 
 ---
 
-## 公开仓库策略
+## 公开单仓策略
 
-当前仓库为私有开发仓库。公开时有两种方案：
+当前仓库按公开单仓处理。可以 commit/push，但每次 commit 都是公开叙事，应先确认本次改动是一个 coherent unit。
 
-**方案 A：直接公开**
+commit 前：
+
 ```bash
-gh repo edit --visibility public
+git status --short --branch
+git diff --stat
+git diff --cached --stat
 ```
-风险：git history 中可能有不需要暴露的草稿、个人记录、敏感信息残留。
 
-**方案 B：fork 净化公开（推荐）**
-1. 清理当前仓库的 git history（如有需要）
-2. 在 GitHub 上创建新公开 repo
-3. 从当前工作区直接推送到公开 repo（不携带历史）
+- [ ] 只包含本次任务相关文件
+- [ ] 不包含 secrets、本地产物、scratch、误追踪文件或 generated noise
+- [ ] 文档叙事与代码事实一致
+
+push 前：
+
 ```bash
-git remote add public https://github.com/Corrame/real-time-commander-demo-public.git
-git push public master
+git status --short --branch
+git log -1 --stat
 ```
-优点：干净起点，只有最终状态，无历史包袱。
+
+- [ ] working tree clean
+- [ ] 最近提交只包含已验收内容
+- [ ] 目标 remote/branch 正确
 
 ---
 
