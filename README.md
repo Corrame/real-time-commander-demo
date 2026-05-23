@@ -1,6 +1,6 @@
 # Real-Time Commander Demo
 
-**把传统自动战斗升级成代理指挥官，同时保留玩家一句话接管关键指挥的能力。**
+**把传统自动战斗推进到「可被玩家一句话接管」的代理指挥原型。**
 
 一个针对「自然语言指挥是否能成为战斗系统交互层」的最小可证原型。
 
@@ -19,6 +19,8 @@
 - [Robustness check](docs/1.0_EVIDENCE_ROBUSTNESS.md)
 - [Authorship / proof note](docs/AUTHORSHIP.md)
 - [Self-check](scripts/self_check.py)
+- [Code complete checklist](docs/code_complete_checklist.md)
+- [Legacy prototype archive](archive/legacy_encounter/README.md)
 
 ---
 
@@ -95,18 +97,18 @@
 
 README 提到的「战术 AI 代理指挥」是下一阶段目标——要求 LLM 读取战场状态并动态连续下令，而不仅是把玩家一句话分类成一个固定 policy。当前代码已验证「命令解释器 + 状态机」这半条链路成立。
 
+`archive/` 下保留的是早期四单位文本 encounter 原型和 baseline 脚本，只作为历史参考；当前 1.0 主线以 `game/mirror_map_sim.py`、`scripts/`、`web/` 和 `docs/1.0_EVIDENCE*.md` 为准。
+
 ---
 
 ## Visual Proof
 
 网页 demo 用左右对照展示自然语言指挥和 baseline 的行为差异（网页动画用于 visual proof，权威统计以 Python 模拟器输出为准）：
 
-<!-- TODO: add docs/assets/web-demo-screenshot.png after capturing the web demo -->
-
 ![fig1_chain](docs/figures/fig1_chain.png)
 
 ```
-# 静态模式（无需 LLM，内置 5 个预置场景）
+# 静态模式（无需 LLM，内置 6 个场景；页面提供 5 个快捷指挥按钮，另含 zero_input baseline 对照）
 python3 -m http.server 8000
 # 打开 http://localhost:8000/web/
 
@@ -142,6 +144,8 @@ python3 scripts/mirror_map_sim.py --runs 10000 --jitter 1 --red-policy good_focu
 python3 scripts/nl_command_eval.py --runs 1000
 python3 scripts/nl_command_eval.py --command "集火残血，前排顶住。"
 ```
+
+公开前/交接检查见 [`docs/code_complete_checklist.md`](docs/code_complete_checklist.md)。该 checklist 是工程验收清单；当前公开仓库以本 README 和 `AGENTS.md` 的仓库分叉规则为准：开发改动先进入私有 `real-time-commander-demo-dev`，公开仓库的 commit/push 需要按公开叙事审慎处理。
 
 ---
 
