@@ -5,8 +5,10 @@ import json
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+import posixpath
 import sys
 from typing import Any
+from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -15,6 +17,8 @@ from agents.llm_client import LLMError
 from scripts.nl_command_eval import EvalCase, evaluate_case
 
 MAX_JSON_BYTES = 16 * 1024
+SAFE_STATIC_EXACT = {"/", "/index.html", "/docs/1.0_EVIDENCE.json"}
+SAFE_STATIC_PREFIXES = ("/web/", "/docs/figures/")
 
 
 class DemoHandler(SimpleHTTPRequestHandler):
@@ -25,7 +29,16 @@ class DemoHandler(SimpleHTTPRequestHandler):
         if self.path == "/api/health":
             self._send_json({"ok": True, "mode": "live-llm"})
             return
+        if not self._is_allowed_static_path():
+            self.send_error(HTTPStatus.NOT_FOUND, "Not found")
+            return
         super().do_GET()
+
+    def do_HEAD(self) -> None:
+        if not self._is_allowed_static_path():
+            self.send_error(HTTPStatus.NOT_FOUND, "Not found")
+            return
+        super().do_HEAD()
 
     def do_POST(self) -> None:
         if self.path != "/api/command":
@@ -67,6 +80,18 @@ class DemoHandler(SimpleHTTPRequestHandler):
         }
         if origin and origin not in allowed_origins:
             raise ValueError("Cross-origin requests are not allowed")
+
+    def _is_allowed_static_path(self) -> bool:
+        path = unquote(urlsplit(self.path).path)
+        normalized = posixpath.normpath(path)
+        if not normalized.startswith("/"):
+            normalized = f"/{normalized}"
+        if path.endswith("/") and normalized != "/":
+            normalized = f"{normalized}/"
+        parts = [part for part in normalized.split("/") if part]
+        if any(part.startswith(".") for part in parts):
+            return False
+        return normalized in SAFE_STATIC_EXACT or normalized in ("/web", "/docs/figures") or normalized.startswith(SAFE_STATIC_PREFIXES)
 
     def _read_json(self) -> dict[str, Any]:
         length = int(self.headers.get("Content-Length", "0") or 0)
